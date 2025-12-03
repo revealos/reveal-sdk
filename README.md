@@ -184,16 +184,24 @@ See [`CHANGELOG.md`](./CHANGELOG.md) for version history and planned features.
 
 ```bash
 # Install dependencies
+npm install
+# or
 pnpm install
 
 # Build
+npm run build
+# or
 pnpm build
 
 # Run tests
+npm test
+# or
 pnpm test
 
 # Run tests in watch mode
-pnpm test --watch
+npm run test:watch
+# or
+pnpm test:watch
 ```
 
 ## Documentation

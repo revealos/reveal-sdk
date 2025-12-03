@@ -31,12 +31,15 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsup --config ../../configs/tsup.sdk.config.ts",
+    "build": "tsup",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1"
+    "@types/node": "^24.10.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
   }
 }
