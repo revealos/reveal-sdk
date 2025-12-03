@@ -1,13 +1,40 @@
 {
   "name": "@reveal/sdk",
   "version": "0.1.0",
+  "description": "Lightweight SDK for detecting user friction and displaying contextual nudges",
+  "keywords": [
+    "analytics",
+    "user-experience",
+    "friction-detection",
+    "nudges",
+    "sdk"
+  ],
+  "author": "Reveal",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/revealos/reveal-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/revealos/reveal-sdk/issues"
+  },
+  "homepage": "https://github.com/revealos/reveal-sdk#readme",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "sideEffects": false,
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsup --config ../../configs/tsup.sdk.config.ts",
-    "test": "vitest"
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage"
   },
   "devDependencies": {
     "@types/node": "^24.10.1"
