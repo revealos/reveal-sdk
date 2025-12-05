@@ -32,23 +32,29 @@ export interface LoggerOptions {
  * @returns Logger instance
  */
 export function createLogger(options: LoggerOptions = {}): Logger {
-  // TODO: Initialize logger with options
-  // TODO: Set up console availability checks
-  // TODO: Implement safe logging (prevent recursion)
+  const { debug = false, prefix = "[Reveal SDK]" } = options;
+  const hasConsole = typeof console !== "undefined";
   
   return {
     logDebug: (message: string, meta?: any) => {
-      // TODO: Log debug message (only if debug mode enabled)
+      if (debug && hasConsole) {
+        console.log(`${prefix} [DEBUG] ${message}`, meta || "");
+      }
     },
     logInfo: (message: string, meta?: any) => {
-      // TODO: Log info message
+      if (hasConsole) {
+        console.info(`${prefix} [INFO] ${message}`, meta || "");
+      }
     },
     logWarn: (message: string, meta?: any) => {
-      // TODO: Log warning message
+      if (hasConsole) {
+        console.warn(`${prefix} [WARN] ${message}`, meta || "");
+      }
     },
     logError: (message: string, error?: any) => {
-      // TODO: Log error message
-      // TODO: Never expose stack traces in production
+      if (hasConsole) {
+        console.error(`${prefix} [ERROR] ${message}`, error || "");
+      }
     },
   };
 }

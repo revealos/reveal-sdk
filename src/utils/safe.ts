@@ -6,24 +6,38 @@
  * @module utils/safe
  */
 
-// TODO: Import logger
+import type { Logger } from "./logger";
 
 /**
  * Safely execute a function, catching and logging errors
  * 
- * @param fn - Function to execute
+ * @param fn - Function to execute (can be sync or async)
  * @param logger - Logger instance
  * @param context - Context for error logging
  */
 export function safeTry<T>(
-  fn: () => T,
-  logger?: any,
+  fn: () => T | Promise<T>,
+  logger?: Logger,
   context?: string
-): T | undefined {
-  // TODO: Execute function in try-catch
-  // TODO: Log errors if logger provided
-  // TODO: Return undefined on error
+): T | Promise<T> | undefined {
+  try {
+    const result = fn();
+    // If it's a promise, wrap it to catch errors
+    if (result instanceof Promise) {
+      return result.catch((error: any) => {
+        if (logger && context) {
+          logger.logError(`Error in ${context}:`, error);
+        }
+        return undefined;
+      });
+    }
+    return result;
+  } catch (error: any) {
+    if (logger && context) {
+      logger.logError(`Error in ${context}:`, error);
+    }
   return undefined;
+  }
 }
 
 /**
@@ -36,12 +50,16 @@ export function safeTry<T>(
  */
 export async function safeTryAsync<T>(
   fn: () => Promise<T>,
-  logger?: any,
+  logger?: Logger,
   context?: string
 ): Promise<T | undefined> {
-  // TODO: Execute async function in try-catch
-  // TODO: Log errors if logger provided
-  // TODO: Return undefined on error
+  try {
+    return await fn();
+  } catch (error: any) {
+    if (logger && context) {
+      logger.logError(`Error in ${context}:`, error);
+    }
   return undefined;
+  }
 }
 
