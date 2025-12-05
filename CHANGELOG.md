@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Context-based idle watching with `Reveal.startIdleWatch()`, `Reveal.stopIdleWatch()`, and `Reveal.markContextClosed()` APIs
   - Auto-starts global stall detection on SDK initialization
   - Emits `friction_idle` events when stall conditions are detected
+- **DecisionClient**: Complete vertical slice for friction → decision → nudge flow
+  - Implements HTTP client for `/decide` endpoint with 200ms timeout enforcement
+  - Handles null decisions, timeouts, and network errors gracefully (never throws)
+  - Validates decision responses and extracts `WireNudgeDecision`
+  - Integrated into EntryPoint friction signal flow
+- **SessionManager**: Minimal stub implementation
+  - Generates session IDs for decision context
+  - Provides `getCurrentSession()` and `markActivity()` APIs
+  - Session persistence and idle timeout pending (v0 minimal implementation)
 - **New Public APIs**:
   - `Reveal.startIdleWatch({ context, selector, timeoutMs })` - Start watching a specific context for idle behavior
   - `Reveal.stopIdleWatch(context)` - Stop watching a context
@@ -22,10 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Safe error handling**: Wrappers to prevent SDK errors from crashing host applications
 - Improved SDK initialization to prevent race conditions with `Reveal.track()`
 - Consolidated meaningful activity detection to prevent duplicate event logging
+- Nudge subscriber integration in harness app for testing
 
 ### Changed
 - TypeScript configuration now includes DOM types for browser API support
 - SDK initialization is now async-safe
+- Fixed TypeScript error in `safe.ts` return type to support `Promise<T | undefined>`
+- Engine logging improved with pino-pretty for readable development logs
 
 ### Planned
 - Full PII scrubbing implementation

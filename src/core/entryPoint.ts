@@ -17,6 +17,8 @@
 import { createLogger, type Logger } from "../utils/logger";
 import { safeTry, safeTryAsync } from "../utils/safe";
 import { createDetectorManager, type DetectorManager } from "../modules/detectorManager";
+import { createSessionManager, type SessionManager } from "../modules/sessionManager";
+import { createDecisionClient, type DecisionClient } from "../modules/decisionClient";
 import type { FrictionSignal } from "../types/friction";
 import type { ClientConfig } from "../types/config";
 import type { WireNudgeDecision } from "../types/decisions";
@@ -27,11 +29,11 @@ let isDisabled = false;
 
 // Internal module references (held in closure)
 let configClient: any = null;
-let sessionManager: any = null;
+let sessionManager: SessionManager | null = null;
 let eventPipeline: any = null;
 let transport: any = null;
 let detectorManager: DetectorManager | null = null;
-let decisionClient: any = null;
+let decisionClient: DecisionClient | null = null;
 let logger: Logger | null = null;
 
 // Nudge decision subscribers (host app callbacks)
@@ -92,7 +94,7 @@ export async function init(
       },
       decision: {
         endpoint: options.decisionEndpoint || `${options.apiBase || "https://api.reveal.io"}/decide`,
-        timeoutMs: 200,
+        timeoutMs: options.decisionTimeoutMs || 200,
       },
       templates: [],
       ttlSeconds: 3600,
@@ -135,14 +137,18 @@ export async function init(
           sessionManager.markActivity();
         }
 
-        // TODO: Ask backend to decide when DecisionClient is implemented
-        // const currentSession = sessionManager.getCurrentSession();
-        // if (currentSession) {
-        //   const decision = await decisionClient.requestDecision(...);
-        //   if (decision) {
-        //     notifyNudgeSubscribers(decision);
-        //   }
-        // }
+        // Request decision from backend
+        const currentSession = sessionManager.getCurrentSession();
+        if (currentSession && decisionClient) {
+          const decision = await decisionClient.requestDecision(frictionSignal, {
+            projectId: minimalConfig.projectId,
+            sessionId: currentSession.id,
+          });
+
+          if (decision) {
+            notifyNudgeSubscribers(decision);
+          }
+        }
       }, loggerRef, "onFrictionSignal");
     }
 
@@ -174,6 +180,19 @@ export async function init(
       },
     };
     // ============================================================================
+
+    // STEP: Initialize SessionManager (provides session context for decisions)
+    sessionManager = createSessionManager({ logger: loggerRef });
+
+    // STEP: Initialize DecisionClient (requests nudge decisions from backend)
+    decisionClient = createDecisionClient({
+      endpoint: minimalConfig.decision.endpoint,
+      timeoutMs: minimalConfig.decision.timeoutMs,
+      projectId: minimalConfig.projectId,
+      environment: minimalConfig.environment,
+      clientKey: clientKey,
+      logger: loggerRef,
+    });
 
     detectorManager = createDetectorManager({
       config: minimalConfig,
@@ -308,7 +327,8 @@ function cleanup() {
   }
 
   if (sessionManager) {
-    safeTry(() => sessionManager.destroy(), logger || undefined, "cleanup:session");
+    const sm = sessionManager; // Capture for TypeScript narrowing
+    safeTry(() => sm.endSession("cleanup"), logger || undefined, "cleanup:session");
   }
 
   // Clear references

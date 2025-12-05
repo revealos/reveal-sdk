@@ -19,7 +19,7 @@ export function safeTry<T>(
   fn: () => T | Promise<T>,
   logger?: Logger,
   context?: string
-): T | Promise<T> | undefined {
+): T | Promise<T> | Promise<T | undefined> | undefined {
   try {
     const result = fn();
     // If it's a promise, wrap it to catch errors
