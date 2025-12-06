@@ -153,9 +153,9 @@ export function createEventPipeline(
       timestamp: now(),
 
       // Location context
-      path: location.path || null,
-      route: location.route || null,
-      screen: location.screen || null,
+      path: location?.path ?? null,
+      route: location?.route ?? null,
+      screen: location?.screen ?? null,
 
       // User agent (captured once)
       user_agent:

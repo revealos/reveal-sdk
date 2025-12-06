@@ -298,7 +298,11 @@ describe('EventPipeline', () => {
       
       expect(mockTransport.sendBatch).not.toHaveBeenCalled();
       expect(mockLogger.logDebug).toHaveBeenCalledWith(
-        'EventPipeline: conditions not met for flush, waiting'
+        'EventPipeline: conditions not met for flush, waiting',
+        {
+          timeSinceLastFlush: expect.any(Number),
+          bufferLength: 1,
+        }
       );
     });
   });

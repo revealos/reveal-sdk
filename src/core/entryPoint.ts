@@ -214,9 +214,17 @@ export async function init(
         getCurrentLocation: () => {
           // Browser environment: use window.location
           if (typeof window !== "undefined" && window.location) {
-            return { path: window.location.pathname };
+            return { 
+              path: window.location.pathname,
+              route: null, // Not available from window.location
+              screen: null, // Not available from window.location
+            };
           }
-          return { path: null };
+          return { 
+            path: null,
+            route: null,
+            screen: null,
+          };
         },
       });
 
