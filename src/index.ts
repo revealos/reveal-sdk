@@ -13,6 +13,10 @@ import { init, track, onNudgeDecision, destroy, startIdleWatch, stopIdleWatch, m
 // Re-export types
 export * from './types';
 
+// Re-export React hooks (optional - requires React peer dependency)
+export { useNudgeDecision } from './hooks/useNudgeDecision';
+export type { UseNudgeDecisionResult } from './hooks/useNudgeDecision';
+
 // Public API
 export const Reveal = {
   init,

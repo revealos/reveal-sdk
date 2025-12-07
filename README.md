@@ -47,6 +47,15 @@ Reveal.onNudgeDecision((decision) => {
   // Render the nudge in your UI
   console.log('Nudge received:', decision);
 });
+
+// Or use the React hook for simplified integration (React apps only)
+import { useNudgeDecision } from '@reveal/sdk';
+import { RevealNudgeHost } from '@reveal/overlay-ui';
+
+function App() {
+  const { decision, handlers } = useNudgeDecision();
+  return <RevealNudgeHost decision={decision} {...handlers} />;
+}
 ```
 
 ## API Reference
@@ -107,6 +116,42 @@ const unsubscribe = Reveal.onNudgeDecision((decision) => {
 // Later, to unsubscribe:
 unsubscribe();
 ```
+
+### `useNudgeDecision()` (React Hook)
+
+React hook that subscribes to nudge decisions and provides UI-ready decision state with tracking handlers. Reduces integration boilerplate from 30+ lines to 3 lines.
+
+**Requirements:** React >= 18.0.0 (peer dependency)
+
+**Returns:** Object with:
+- `decision` (`UINudgeDecision | null`) - Current nudge decision in UI format
+- `handlers` - Object containing:
+  - `onDismiss` - Handler for nudge dismissal
+  - `onActionClick` - Handler for nudge action/CTA clicks
+  - `onTrack` - Handler for tracking events
+
+**Example:**
+```typescript
+import { useNudgeDecision } from '@reveal/sdk';
+import { RevealNudgeHost } from '@reveal/overlay-ui';
+
+function App() {
+  const { decision, handlers } = useNudgeDecision();
+  
+  return (
+    <>
+      {children}
+      <RevealNudgeHost decision={decision} {...handlers} />
+    </>
+  );
+}
+```
+
+**Note:** This hook automatically:
+- Subscribes to `Reveal.onNudgeDecision` on mount
+- Converts `WireNudgeDecision` to `UINudgeDecision` using `mapWireToUI`
+- Unsubscribes on unmount
+- Provides tracking handlers that call `Reveal.track` internally
 
 ## Types
 
