@@ -6,7 +6,7 @@
  * 
  * This hook:
  * - Subscribes to Reveal.onNudgeDecision internally
- * - Converts WireNudgeDecision to UINudgeDecision using mapWireToUI
+ * - Converts WireNudgeDecision to UINudgeDecision using mapWireToUI (from SDK)
  * - Manages decision state internally
  * - Provides tracking handlers (onDismiss, onActionClick, onTrack)
  * 
@@ -17,11 +17,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, startTransition } fr
 import { onNudgeDecision } from "../core/entryPoint";
 import { track } from "../core/entryPoint";
 import type { WireNudgeDecision } from "../types/decisions";
-
-// Import from overlay-ui for conversion and types
-// Note: This creates a dependency from SDK → overlay-ui, which is acceptable
-// because the hook is optional (React apps only) and overlay-ui already depends on SDK
-import { mapWireToUI, type UINudgeDecision } from "@reveal/overlay-ui";
+import { mapWireToUI, type UINudgeDecision } from "../types/uiDecision";
 
 export interface UseNudgeDecisionResult {
   /** Current nudge decision in UI format, or null if no active decision */

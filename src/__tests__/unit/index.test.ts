@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Reveal, type EventKind, type FrictionSignal, type NudgeDecision } from '../../index';
+import { Reveal, type EventKind, type FrictionSignal, type WireNudgeDecision } from '../../index';
 
 describe('Reveal SDK', () => {
   describe('Exports', () => {
@@ -48,8 +48,8 @@ describe('Reveal SDK', () => {
       expect(signal.pageUrl).toBe('https://example.com');
     });
 
-    it('should export NudgeDecision type', () => {
-      const decision: NudgeDecision = {
+    it('should export WireNudgeDecision type', () => {
+      const decision: WireNudgeDecision = {
         nudgeId: 'nudge_123',
         templateId: 'tooltip',
         title: 'Test',
@@ -98,7 +98,7 @@ describe('Reveal SDK', () => {
 
   describe('Reveal.onNudgeDecision', () => {
     it('should accept a handler function', () => {
-      const handler = (decision: NudgeDecision) => {
+      const handler = (decision: WireNudgeDecision) => {
         // Handler implementation
       };
       expect(() => {

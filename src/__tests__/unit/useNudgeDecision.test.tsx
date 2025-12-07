@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useNudgeDecision } from '../../hooks/useNudgeDecision';
 import * as entryPoint from '../../core/entryPoint';
-import * as overlayUI from '@reveal/overlay-ui';
+import * as uiDecision from '../../types/uiDecision';
 
 // Mock entryPoint
 vi.mock('../../core/entryPoint', () => ({
@@ -16,8 +16,8 @@ vi.mock('../../core/entryPoint', () => ({
   track: vi.fn(),
 }));
 
-// Mock overlay-ui
-vi.mock('@reveal/overlay-ui', () => ({
+// Mock uiDecision (mapWireToUI)
+vi.mock('../../types/uiDecision', () => ({
   mapWireToUI: vi.fn((wire) => ({
     id: wire.nudgeId,
     templateId: wire.templateId,
@@ -95,7 +95,7 @@ describe('useNudgeDecision', () => {
       expect(result.current.decision).not.toBeNull();
     });
 
-    expect(overlayUI.mapWireToUI).toHaveBeenCalledWith(wireDecision);
+    expect(uiDecision.mapWireToUI).toHaveBeenCalledWith(wireDecision);
     expect(result.current.decision).toEqual({
       id: 'test-nudge-001',
       templateId: 'tooltip',

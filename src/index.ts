@@ -13,6 +13,15 @@ import { init, track, onNudgeDecision, destroy, startIdleWatch, stopIdleWatch, m
 // Re-export types
 export * from './types';
 
+// Re-export UI decision types and utilities (for React hooks and host apps)
+export { mapWireToUI } from './types/uiDecision';
+export type { 
+  UINudgeDecision, 
+  NudgeDecision, 
+  NudgeTemplateId, 
+  NudgeSeverity 
+} from './types/uiDecision';
+
 // Re-export React hooks (optional - requires React peer dependency)
 export { useNudgeDecision } from './hooks/useNudgeDecision';
 export type { UseNudgeDecisionResult } from './hooks/useNudgeDecision';

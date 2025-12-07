@@ -130,6 +130,8 @@ React hook that subscribes to nudge decisions and provides UI-ready decision sta
   - `onActionClick` - Handler for nudge action/CTA clicks
   - `onTrack` - Handler for tracking events
 
+**Note:** The hook automatically converts `WireNudgeDecision` to `UINudgeDecision` using `mapWireToUI` (exported from SDK).
+
 **Example:**
 ```typescript
 import { useNudgeDecision } from '@reveal/sdk';
@@ -153,16 +155,36 @@ function App() {
 - Unsubscribes on unmount
 - Provides tracking handlers that call `Reveal.track` internally
 
-## Types
+## Type Exports
 
-The SDK is written in TypeScript and provides full type definitions:
+The SDK exports the following types for use in host applications:
+
+- `WireNudgeDecision` - Wire-level decision format (from backend)
+- `UINudgeDecision` - UI-facing decision format (for React components)
+- `NudgeDecision` - Alias for `UINudgeDecision` (UI-facing)
+- `NudgeTemplateId` - Template identifier union type
+- `NudgeSeverity` - Severity level union type
+- `mapWireToUI()` - Function to convert `WireNudgeDecision` to `UINudgeDecision`
+
+**Example:**
+```typescript
+import { mapWireToUI, type UINudgeDecision } from '@reveal/sdk';
+
+Reveal.onNudgeDecision((wireDecision) => {
+  const uiDecision = mapWireToUI(wireDecision);
+  // Use uiDecision with your UI components
+});
+```
+
+The SDK also exports other types:
 
 ```typescript
 import type {
   EventKind,
   FrictionSignal,
-  NudgeDecision,
   WireNudgeDecision,
+  UINudgeDecision,
+  NudgeDecision,
 } from '@reveal/sdk';
 ```
 

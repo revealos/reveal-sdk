@@ -4,11 +4,6 @@ import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: {
-      '@reveal/overlay-ui': resolve(__dirname, '../overlay-ui/src'),
-    },
-  },
   test: {
     globals: true,
     environment: 'jsdom', // Use jsdom for React component testing

@@ -33,6 +33,9 @@ export interface WireNudgeDecision {
 
 /**
  * SDK NudgeDecision type (alias for WireNudgeDecision)
+ * 
+ * Note: This is the wire-level format. For UI-facing decisions used by React hooks,
+ * use UINudgeDecision or NudgeDecision from './uiDecision' instead.
  */
 export type NudgeDecision = WireNudgeDecision;
 
