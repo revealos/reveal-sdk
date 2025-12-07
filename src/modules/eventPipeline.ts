@@ -79,7 +79,7 @@ export function createEventPipeline(
           screen: null,
         };
       }
-      return { 
+  return {
         path: null,
         route: null,
         screen: null,
