@@ -5,6 +5,22 @@
  * based on the current NudgeDecision. Acts as the single entry point
  * for rendering nudges in a React app.
  * 
+ * SECURITY: XSS Prevention
+ * 
+ * This component renders nudge content from backend decisions. All content
+ * is treated as plain text and rendered via React's text node rendering
+ * (e.g., <p>{decision.body}</p>). No HTML injection is possible because:
+ * 
+ * 1. Backend sends only plain string fields (title, body, ctaText) in WireNudgeDecision
+ * 2. React automatically escapes all text content when rendering via JSX
+ * 3. No dangerouslySetInnerHTML is used anywhere in the overlay package
+ * 4. No eval() or Function() calls exist in the overlay package
+ * 5. All template components render content as React props, not HTML strings
+ * 
+ * This ensures that even if the backend is compromised, no executable
+ * code can be injected into the host application. The worst-case scenario
+ * is incorrect text content being displayed, which cannot execute code.
+ * 
  * @module components/OverlayManager
  */
 

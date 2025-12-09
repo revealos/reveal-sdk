@@ -1,9 +1,7 @@
 # Reveal Client SDK
 
-[![CI](https://github.com/revealos/reveal-sdk/workflows/CI/badge.svg)](https://
-github.com/revealos/reveal-sdk/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://
-opensource.org/licenses/MIT)
+[![CI](https://github.com/revealos/reveal-sdk/workflows/CI/badge.svg)](https://github.com/revealos/reveal-sdk/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- npm badge will be added when package is published -->
 A lightweight, security-first SDK for detecting user friction and displaying contextual nudges in web applications.
 

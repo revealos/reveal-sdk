@@ -19,6 +19,8 @@
 import type { FrictionSignal } from "../types/friction";
 import type { WireNudgeDecision } from "../types/decisions";
 import type { Logger } from "../utils/logger";
+import { scrubPII } from "../security/dataSanitization";
+import { logAuditEvent, createAuditEvent } from "../security/auditLogger";
 
 /**
  * DecisionClient options
@@ -184,12 +186,13 @@ export function createDecisionClient(
       sessionId: context.sessionId,
 
       // Friction signal (canonical shape matching SDK FrictionSignal)
+      // SECURITY: Scrub PII from friction.extra before sending
       friction: {
         type: signal.type,
         pageUrl: signal.pageUrl,
         selector: signal.selector ?? null,
         timestamp: signal.timestamp,
-        extra: signal.extra ?? {},
+        extra: signal.extra ? scrubPII(signal.extra) : {},
       },
     };
   }
@@ -207,6 +210,20 @@ export function createDecisionClient(
     }, timeoutMs);
 
     try {
+      // ────────────────────────────────────────────────────────────────
+      // SECURITY: Audit log before sending decision request
+      // Metadata contains summary only (no raw PII, friction.extra already scrubbed)
+      // ────────────────────────────────────────────────────────────────
+      logAuditEvent(createAuditEvent(
+        "data_access",
+        "low",
+        "Decision request sent to backend",
+        {
+          frictionType: payload.friction.type,
+          endpoint,
+        }
+      ));
+
       // ────────────────────────────────────────────────────────────────
       // SEND HTTP REQUEST
       // ────────────────────────────────────────────────────────────────

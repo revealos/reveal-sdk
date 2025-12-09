@@ -18,6 +18,7 @@
 
 import type { BaseEvent } from "../types/events";
 import type { Logger } from "../utils/logger";
+import { logAuditEvent, createAuditEvent } from "../security/auditLogger";
 
 /**
  * Transport options
@@ -207,6 +208,19 @@ export function createTransport(options: TransportOptions): Transport {
         events: events,
         timestamp: now(),
       };
+
+      // SECURITY: Audit log before sending event batch
+      // Metadata contains summary only (no raw PII, payloads already scrubbed)
+      logAuditEvent(createAuditEvent(
+        "data_access",
+        "low",
+        "Event batch sent to backend",
+        {
+          batchId,
+          eventCount: events.length,
+          endpoint: endpointUrl,
+        }
+      ));
 
       // Make HTTP request
       const response = await fetchFn(endpointUrl, {

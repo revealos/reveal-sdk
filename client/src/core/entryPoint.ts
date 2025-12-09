@@ -21,6 +21,8 @@ import { createSessionManager, type SessionManager } from "../modules/sessionMan
 import { createDecisionClient, type DecisionClient } from "../modules/decisionClient";
 import { createTransport, type Transport } from "../modules/transport";
 import { createEventPipeline, type EventPipeline } from "../modules/eventPipeline";
+import { setAuditLogger } from "../security/auditLogger";
+import { setErrorLogger } from "../errors/errorHandler";
 import type { FrictionSignal } from "../types/friction";
 import type { ClientConfig } from "../types/config";
 import type { WireNudgeDecision } from "../types/decisions";
@@ -82,6 +84,10 @@ export async function init(
   // Store logger reference for safeTry (TypeScript narrowing)
   // createLogger always returns a Logger, so this is safe
   const loggerRef: Logger = logger;
+
+  // SECURITY: Wire logger into audit and error handling modules
+  setAuditLogger(loggerRef);
+  setErrorLogger(loggerRef);
 
   // ORCHESTRATE: Async initialization flow
   safeTryAsync(async () => {

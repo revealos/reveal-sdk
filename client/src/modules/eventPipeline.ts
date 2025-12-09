@@ -22,6 +22,7 @@ import type { EventKind, BaseEvent, EventSource, EventPayload } from "../types/e
 import type { SessionManager } from "./sessionManager";
 import type { Transport } from "./transport";
 import type { Logger } from "../utils/logger";
+import { scrubPII } from "../security/dataSanitization";
 
 /**
  * EventPipeline configuration
@@ -143,6 +144,11 @@ export function createEventPipeline(
     const transformedPayload =
       kind === "nudge" ? transformNudgePayload(payload) : payload;
 
+    // SECURITY: Scrub PII from payload before creating BaseEvent
+    // This is the single choke point where all event payloads are sanitized
+    // before being sent over the network
+    const scrubbedPayload = scrubPII(transformedPayload);
+
     // Determine event_source: nudges are system-generated, all others are user-generated
     const event_source: EventSource = kind === "nudge" ? "system" : "user";
 
@@ -177,8 +183,8 @@ export function createEventPipeline(
       viewport_height:
         typeof window !== "undefined" ? window.innerHeight : 0,
 
-      // Custom payload (transformed for nudge events)
-      payload: transformedPayload || {},
+      // Custom payload (transformed for nudge events, scrubbed of PII)
+      payload: scrubbedPayload || {},
     };
 
     return enrichedEvent;
