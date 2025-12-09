@@ -1,0 +1,37 @@
+{
+  "name": "reveal-client",
+  "version": "0.1.0",
+  "description": "Reveal client SDK and React components for detecting user friction and displaying contextual nudges",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/revealos/reveal-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/revealos/reveal-sdk/issues"
+  },
+  "homepage": "https://github.com/revealos/reveal-sdk#readme",
+  "license": "MIT",
+  "author": "Reveal",
+  "workspaces": [
+    "client",
+    "overlay-react"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:watch": "pnpm -r test:watch",
+    "test:coverage": "pnpm -r test:coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
+    "eslint": "^9.39.1",
+    "prettier": "^3.7.3",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
+  }
+}
+
