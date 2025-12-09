@@ -53,10 +53,18 @@ export interface UseNudgeDecisionResult {
 export function useNudgeDecision(): UseNudgeDecisionResult {
   const [decision, setDecision] = useState<UINudgeDecision | null>(null);
   const previousPathnameRef = useRef<string | null>(null);
+  const lastDecisionIdRef = useRef<string | null>(null);
 
   // Subscribe to nudge decisions
   useEffect(() => {
     const unsubscribe = onNudgeDecision((wireDecision: WireNudgeDecision) => {
+      // Deduplication: skip if same decision ID
+      if (lastDecisionIdRef.current === wireDecision.nudgeId) {
+        return;
+      }
+
+      lastDecisionIdRef.current = wireDecision.nudgeId;
+
       // Convert wire format to UI format
       const uiDecision = mapWireToUI(wireDecision);
       // Use startTransition to help React 19 Fast Refresh track state updates
@@ -99,6 +107,7 @@ export function useNudgeDecision(): UseNudgeDecisionResult {
           reason: "navigation" 
         });
         setDecision(null);
+        lastDecisionIdRef.current = null; // Reset on navigation dismiss
         previousPathnameRef.current = currentPathname;
       } else if (currentPathname !== null) {
         previousPathnameRef.current = currentPathname;
@@ -137,12 +146,14 @@ export function useNudgeDecision(): UseNudgeDecisionResult {
   const handleDismiss = useCallback((nudgeId: string) => {
     track("nudge", "nudge_dismissed", { nudgeId });
     setDecision(null);
+    lastDecisionIdRef.current = null; // Reset on dismiss
   }, []);
 
   // Handler for nudge action click
   const handleActionClick = useCallback((nudgeId: string) => {
     track("nudge", "nudge_clicked", { nudgeId });
     setDecision(null);
+    lastDecisionIdRef.current = null; // Reset on action click
   }, []);
 
   // Handler for tracking events (passed to OverlayManager)

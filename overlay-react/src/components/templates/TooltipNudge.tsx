@@ -12,6 +12,7 @@ import { useEffect, useState, useRef } from "react"
 import type { UINudgeDecision } from "../../types/NudgeDecision"
 import { computeTooltipPosition } from "../../layout/computeTooltipPosition"
 import { useKeyboardDismiss } from "../../hooks/useKeyboardDismiss"
+import { Z_INDEX } from "../../utils/constants"
 
 interface TooltipNudgeProps {
   /** The nudge decision containing content and configuration */
@@ -118,11 +119,12 @@ export function TooltipNudge({
       {/* Tooltip - non-blocking, no backdrop overlay */}
       <div
         ref={tooltipRef}
-        className="fixed z-50 max-w-xs bg-popover border border-border rounded-lg shadow-lg p-3 pointer-events-auto"
+        className="fixed max-w-xs bg-popover border border-border rounded-lg shadow-lg p-3 pointer-events-auto"
         style={{
           top: `${position.top}px`,
           left: `${position.left}px`,
           transform: "translate(-50%, -100%)", // Center horizontally, position above
+          zIndex: Z_INDEX.TOOLTIP,
         }}
         role="tooltip"
         aria-labelledby={hasTitle ? `tooltip-title-${decision.id}` : undefined}

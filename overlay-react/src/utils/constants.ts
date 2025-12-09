@@ -27,3 +27,16 @@ export const NUDGE_SEVERITY = {
   DANGER: "danger",
 } as const;
 
+/**
+ * Z-index constants for overlay layering
+ * 
+ * These values ensure overlays render above host app content while
+ * maintaining proper layering between different overlay types.
+ */
+export const Z_INDEX = {
+  OVERLAY_ROOT: 9999,      // Portal container (base layer)
+  BACKDROP: 10000,         // Modal/banner backdrops
+  TOOLTIP: 10001,          // Tooltips (above backdrop)
+  MODAL: 10002,            // Modals (highest priority)
+} as const;
+

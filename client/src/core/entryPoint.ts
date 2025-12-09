@@ -44,6 +44,9 @@ let logger: Logger | null = null;
 // Nudge decision subscribers (host app callbacks)
 let nudgeSubscribers: Array<(decision: WireNudgeDecision) => void> = [];
 
+// Track last decision ID for deduplication
+let lastDecisionId: string | null = null;
+
 /**
  * Initialize the Reveal SDK
  * 
@@ -262,8 +265,13 @@ export async function init(
       logger: loggerRef,
     });
 
-    detectorManager.initDetectors();
-    loggerRef.logDebug("Detectors initialized and listening");
+    // SAFETY: Wrap detector initialization in safeTry to prevent crashes
+    safeTry(() => {
+      if (detectorManager) {
+        detectorManager.initDetectors();
+        loggerRef.logDebug("Detectors initialized and listening");
+      }
+    }, loggerRef, "DetectorManager.initDetectors");
 
     loggerRef.logDebug("Reveal SDK initialization complete ✓");
   }, loggerRef, "Reveal.init()").catch((error: any) => {
@@ -370,6 +378,14 @@ export function destroy(): void {
 
 function notifyNudgeSubscribers(decision: WireNudgeDecision) {
   if (!nudgeSubscribers.length) return;
+
+  // Deduplication: skip if same decision ID
+  if (lastDecisionId === decision.nudgeId) {
+    logger?.logDebug("Skipping duplicate nudge decision", { nudgeId: decision.nudgeId });
+    return;
+  }
+
+  lastDecisionId = decision.nudgeId;
 
   nudgeSubscribers.forEach((handler) => {
     safeTry(() => handler(decision), logger || undefined, "nudgeSubscriber");

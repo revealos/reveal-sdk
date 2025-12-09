@@ -132,11 +132,17 @@ export function createStallDetector(
    * Handle keyboard activity (keydown, input, change)
    */
   function onKeyboardActivity(event: Event) {
-    const target = event.target as Element | null;
-    // Only count keyboard activity on editable elements or form elements
-    const tagName = target ? (target as HTMLElement).tagName?.toLowerCase() : null;
-    if (isEditableElement(target) || tagName === "form") {
-      onMeaningfulActivity();
+    try {
+      const target = event.target as Element | null;
+      // Only count keyboard activity on editable elements or form elements
+      const tagName = target ? (target as HTMLElement).tagName?.toLowerCase() : null;
+      if (isEditableElement(target) || tagName === "form") {
+        onMeaningfulActivity();
+      }
+    } catch (error: any) {
+      logger.logError("StallDetector: error in onKeyboardActivity", {
+        error: error?.message || String(error),
+      });
     }
   }
 
@@ -144,24 +150,42 @@ export function createStallDetector(
    * Handle mouse click activity (mousedown, click, mouseup)
    */
   function onMouseClickActivity() {
-    onMeaningfulActivity();
+    try {
+      onMeaningfulActivity();
+    } catch (error: any) {
+      logger.logError("StallDetector: error in onMouseClickActivity", {
+        error: error?.message || String(error),
+      });
+    }
   }
 
   /**
    * Handle form submit
    */
   function onFormSubmit() {
-    onMeaningfulActivity();
+    try {
+      onMeaningfulActivity();
+    } catch (error: any) {
+      logger.logError("StallDetector: error in onFormSubmit", {
+        error: error?.message || String(error),
+      });
+    }
   }
 
   /**
    * Handle navigation changes (popstate, hashchange, route change)
    */
   function onNavigationChange() {
-    onMeaningfulActivity();
-    // Also stop all active contexts on navigation
-    activeContexts.clear();
-    logger.logDebug("StallDetector: navigation detected, cleared all contexts");
+    try {
+      onMeaningfulActivity();
+      // Also stop all active contexts on navigation
+      activeContexts.clear();
+      logger.logDebug("StallDetector: navigation detected, cleared all contexts");
+    } catch (error: any) {
+      logger.logError("StallDetector: error in onNavigationChange", {
+        error: error?.message || String(error),
+      });
+    }
   }
 
   /**

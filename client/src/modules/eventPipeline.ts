@@ -530,10 +530,19 @@ export function createEventPipeline(
       flushTimer = null;
     }
 
-    // Final flush with beacon mode (best effort, fire-and-forget)
+    // Final flush with timeout protection (wait up to 5 seconds)
     if (eventBuffer.length > 0) {
       logger?.logDebug("EventPipeline: final flush on destroy");
-      flush(true, "beacon").catch((error) => {
+      
+      const flushPromise = flush(true, "beacon");
+      const timeoutPromise = new Promise<void>((resolve) => {
+        setTimeout(() => {
+          logger?.logWarn("EventPipeline: final flush timeout, continuing destroy");
+          resolve();
+        }, 5000);
+      });
+      
+      Promise.race([flushPromise, timeoutPromise]).catch((error) => {
         logger?.logError("EventPipeline: final flush failed", error);
       });
     }

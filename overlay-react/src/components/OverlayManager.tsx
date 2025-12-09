@@ -27,12 +27,14 @@
 "use client";
 
 /* @refresh reset */
-import React, { memo } from "react";
+import React, { memo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { NudgeDecision } from "../types/NudgeDecision";
 import { useNudgeVisibility } from "../hooks/useNudgeVisibility";
 import { useTargetRect } from "../hooks/useTargetRect";
 import { useTrackNudgeShown } from "../hooks/useTrackNudgeShown";
 import { TooltipNudge } from "./templates/TooltipNudge";
+import { Z_INDEX } from "../utils/constants";
 
 export interface OverlayManagerProps {
   /** Current nudge decision to render, or null if no active nudge */
@@ -81,6 +83,28 @@ export const OverlayManager = memo(function OverlayManager(
     onDismiss,
   });
 
+  // Portal container for DOM isolation
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    // Create or find portal container
+    let container = document.getElementById("reveal-overlay-root");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "reveal-overlay-root";
+      container.style.cssText = `position: fixed; top: 0; left: 0; pointer-events: none; z-index: ${Z_INDEX.OVERLAY_ROOT};`;
+      document.body.appendChild(container);
+    }
+    setPortalContainer(container);
+
+    return () => {
+      // Cleanup: only remove if we created it and it's empty
+      if (container && container.children.length === 0 && container.id === "reveal-overlay-root") {
+        container.remove();
+      }
+    };
+  }, []);
+
   // NOW check conditions AFTER all hooks are called
   if (!decision) {
     return null;
@@ -88,6 +112,11 @@ export const OverlayManager = memo(function OverlayManager(
 
   // If not visible (auto-dismissed or manually dismissed), render nothing
   if (!isVisible) {
+    return null;
+  }
+
+  // Wait for portal container
+  if (!portalContainer) {
     return null;
   }
 
@@ -108,16 +137,18 @@ export const OverlayManager = memo(function OverlayManager(
   };
 
   // Delegate to specific template based on templateId
+  // Render via portal for DOM isolation
   switch (decision.templateId) {
     case "tooltip":
-      return (
+      return createPortal(
         <TooltipNudge
           decision={decision}
           targetRect={targetRect}
           onDismiss={handleDismiss}
           onActionClick={handleActionClick}
           onTrack={onTrack}
-        />
+        />,
+        portalContainer
       );
 
     case "spotlight":

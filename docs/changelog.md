@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **SDK Safety Hardening**: Comprehensive error handling and crash prevention
+  - Detector initialization wrapped in `safeTry` to prevent `Reveal.init()` crashes
+  - All detector event listeners wrapped in try-catch blocks to prevent crashes from unexpected errors
+  - Nudge decision deduplication in `notifyNudgeSubscribers()` and `useNudgeDecision()` hook to prevent duplicate renders
+  - Event pipeline flush safety: `destroy()` waits for final flush completion with 5-second timeout
+  - React portal isolation for overlays: `OverlayManager` renders in isolated portal container (`#reveal-overlay-root`)
+  - Systematic z-index layering: Z_INDEX constants (OVERLAY_ROOT: 9999, BACKDROP: 10000, TOOLTIP: 10001, MODAL: 10002) to prevent conflicts with host app
 - **Security Hardening**: Comprehensive PII scrubbing and audit logging implementation
   - `scrubPII()` function in `packages/client/src/security/dataSanitization.ts` with 30+ PII key patterns
   - PII scrubbing applied at choke points: `eventPipeline.enrichEvent()` and `decisionClient.buildRequestPayload()`
@@ -39,6 +46,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Used consistently across `Reveal.track()`, `EventPipeline`, and internal event handling
 
 ### Changed
+- **SDK Initialization Safety**: Detector initialization now wrapped in error handling to prevent crashes
+  - `detectorManager.initDetectors()` wrapped in `safeTry` to ensure SDK initialization never throws
+  - SDK continues to function even if detector initialization fails
+- **Nudge Callback Deduplication**: Nudge decisions are now deduplicated to prevent duplicate renders
+  - `notifyNudgeSubscribers()` tracks last decision ID and skips duplicates
+  - `useNudgeDecision()` hook tracks last decision ID to prevent duplicate state updates
+  - Prevents duplicate nudge renders and duplicate tracking events
+- **Detector Error Handling**: All detector event listeners now wrapped in try-catch blocks
+  - `onKeyboardActivity`, `onMouseClickActivity`, `onFormSubmit`, `onNavigationChange` all protected
+  - Errors in event listeners no longer crash the host application
+- **Event Pipeline Flush Safety**: `destroy()` now waits for final flush completion
+  - Final flush uses Promise.race with 5-second timeout to prevent hanging
+  - Ensures events are not lost during SDK shutdown
+- **Overlay DOM Isolation**: Overlays now render in isolated React portal
+  - `OverlayManager` creates/finds `#reveal-overlay-root` portal container
+  - Prevents DOM conflicts with host application
+  - Portal container cleaned up on unmount if empty
+- **Z-Index Layering**: Systematic z-index strategy implemented
+  - Z_INDEX constants defined in `packages/overlay-react/src/utils/constants.ts`
+  - TooltipNudge uses `Z_INDEX.TOOLTIP` instead of hardcoded `z-50`
+  - Portal container uses `Z_INDEX.OVERLAY_ROOT` for base layer
 - **Audit Logging Visibility**: Low-severity audit events now use `logDebug()` instead of `logInfo()`
   - Low-severity audit logs only appear in debug mode (not production console)
   - Prevents console noise in production while maintaining audit trail in debug mode
