@@ -8,12 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Security Hardening**: Comprehensive PII scrubbing and audit logging implementation
+  - `scrubPII()` function in `packages/client/src/security/dataSanitization.ts` with 30+ PII key patterns
+  - PII scrubbing applied at choke points: `eventPipeline.enrichEvent()` and `decisionClient.buildRequestPayload()`
+  - `logAuditEvent()` function in `packages/client/src/security/auditLogger.ts` for structured audit logging
+  - Audit logging integrated into transport layer (event batches) and decision client (decision requests)
+  - Low-severity audit logs use `logDebug()` (only visible in debug mode, not production console)
+  - Error handling integrated with audit logging via `errorHandler.ts`
+- **AUDIT_AI.md**: AI-driven security audit guide with 5-section audit prompt
+  - Network Surface Area verification
+  - Data Collection & Handling verification
+  - DOM Interaction Surface verification
+  - Dependency & Permissions verification
+  - Final Audit Verdict (slide-ready summary)
+  - Designed for AI-driven security teams and automated audit tools
+- **INTEGRATION_AI.md**: AI IDE integration prompt for Cursor/Claude
+  - Step-by-step integration guide with hard constraints
+  - Self-check auditability verification steps
+  - Event tracking templates for common patterns (navigation, forms, buttons, entity creation, state changes)
+  - Framework-specific instructions (Next.js App Router, Pages Router, Create React App, Vite)
+  - Reference to harness app implementation
+- **Quadrant-Based Positioning Strategy** (Planned)
+  - Overlay positioning will use quadrant-based strategy instead of target element attachment
+  - Supports viewport-relative quadrants (top-left, top-right, bottom-left, bottom-right)
+  - Backend can specify quadrant preference or SDK can auto-detect best quadrant
+  - Replaces current target element positioning approach for better flexibility
 - **EventPayload type**: Explicit type export for event properties (`Record<string, any>`)
   - Provides clear type definition for event payloads throughout the SDK
   - Exported from `@reveal/client` for use in host applications
   - Used consistently across `Reveal.track()`, `EventPipeline`, and internal event handling
 
 ### Changed
+- **Audit Logging Visibility**: Low-severity audit events now use `logDebug()` instead of `logInfo()`
+  - Low-severity audit logs only appear in debug mode (not production console)
+  - Prevents console noise in production while maintaining audit trail in debug mode
+  - Updated `auditLogger.test.ts` to expect `logDebug()` for low-severity events
 - **Error handling**: Wrapped `createDecisionClient` initialization in `safeTry` to prevent host app crashes
   - DecisionClient validation errors now fail safely instead of throwing
   - SDK continues to function even if DecisionClient initialization fails
@@ -79,10 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Engine logging improved with pino-pretty for readable development logs
 
 ### Planned
-- Full PII scrubbing implementation
-- Complete audit logging system
-- Comprehensive test coverage
-- Production-ready error handling
+- Quadrant-based overlay positioning implementation
+- Comprehensive test coverage expansion
 - Performance optimizations
 
 ## [0.1.0] - 2025-12-03

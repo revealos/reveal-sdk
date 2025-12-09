@@ -49,13 +49,13 @@ import { OverlayManager } from '@reveal/overlay-react';
 
 export function RevealContextProvider({ children }: { children: React.ReactNode }) {
   const { decision, handlers } = useNudgeDecision();
-
+  
   useEffect(() => {
     (async () => {
       await Reveal.init('your-client-key');
     })();
   }, []);
-
+  
   return (
     <>
       {children}
@@ -160,6 +160,7 @@ All layers are designed to fail gracefully and never break the host application.
 - **SDK API Reference** → [docs/API.md](./docs/API.md)
 - **Event Types** → [docs/EVENTS.md](./docs/EVENTS.md)
 - **Security** → [docs/SECURITY.md](./docs/SECURITY.md)
+- **Overlay Positioning** → [docs/OVERLAY_POSITIONING.md](./docs/OVERLAY_POSITIONING.md)
 - **Audit Prompts** → [docs/AUDIT_AI.md](./docs/AUDIT_AI.md)
 - **Integration Prompts** → [docs/INTEGRATION_AI.md](./docs/INTEGRATION_AI.md)
 

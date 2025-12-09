@@ -167,6 +167,7 @@ Output Format:
    - `title?: string`
    - `body?: string`
    - `ctaText?: string`
+   - `quadrant?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "auto"`
    - No HTML fields, no executable code fields
 
 2. **React Rendering**: All content rendered as React text nodes:

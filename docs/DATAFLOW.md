@@ -121,7 +121,7 @@ This is the **single auditable file** for all network requests. No other file in
    - `title` - Message title (plain text)
    - `body` - Message body (plain text)
    - `ctaText` - Call-to-action label (optional, plain text)
-   - `slotId` - Target element selector (optional)
+   - `quadrant` - Positioning quadrant: `"top-left" | "top-right" | "bottom-left" | "bottom-right" | "auto"` (optional, replaces target element positioning)
    - `frictionType` - Type of friction that triggered this (optional)
    - `expiresAt` - ISO timestamp when decision expires (optional)
    - `extra` - Additional metadata (optional, flat JSON only)
@@ -141,7 +141,7 @@ The Overlay receives a strict JSON object:
   title?: string,
   body?: string,
   ctaText?: string,
-  slotId?: string,
+  quadrant?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "auto",
   frictionType?: "stall" | "rageclick" | "backtrack",
   expiresAt?: string,
   extra?: Record<string, string | number | boolean | null>
