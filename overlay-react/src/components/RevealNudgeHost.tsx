@@ -47,7 +47,7 @@ export interface RevealNudgeHostProps {
  */
 export const RevealNudgeHost = memo(function RevealNudgeHost(
   props: RevealNudgeHostProps
-): JSX.Element | null {
+): React.ReactElement | null {
   const { decision, onDismiss, onActionClick, onTrack } = props;
 
   // ✅ ALL HOOKS MUST BE CALLED UNCONDITIONALLY FIRST (Rules of Hooks)

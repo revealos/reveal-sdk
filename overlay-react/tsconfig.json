@@ -5,7 +5,10 @@
     "declaration": true,
     "declarationMap": true,
     "lib": ["DOM", "ES2020"],
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": ["react", "react-dom", "node"],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": ["src"]
 }
