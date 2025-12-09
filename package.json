@@ -13,10 +13,6 @@
   "homepage": "https://github.com/revealos/reveal-sdk#readme",
   "license": "MIT",
   "author": "Reveal",
-  "workspaces": [
-    "client",
-    "overlay-react"
-  ],
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",

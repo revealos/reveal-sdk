@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "sideEffects": true,
   "scripts": {
-    "build": "tsup --config ../../configs/tsup.overlay-react.config.ts",
+    "build": "tsup",
     "test": "vitest"
   },
   "devDependencies": {
