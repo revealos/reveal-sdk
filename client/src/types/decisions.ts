@@ -17,6 +17,17 @@ export type TemplateId =
   | "inline_hint";
 
 /**
+ * Quadrant positioning options for overlays
+ */
+export type NudgeQuadrant =
+  | "topLeft"
+  | "topCenter"
+  | "topRight"
+  | "bottomLeft"
+  | "bottomCenter"
+  | "bottomRight";
+
+/**
  * Wire-level NudgeDecision (canonical shape between engine and SDK)
  */
 export interface WireNudgeDecision {
@@ -25,7 +36,8 @@ export interface WireNudgeDecision {
   title?: string;
   body?: string;
   ctaText?: string;
-  slotId?: string;
+  slotId?: string; // Deprecated: kept for backward compatibility
+  quadrant?: NudgeQuadrant; // Viewport quadrant for positioning (defaults to "topCenter")
   frictionType?: "stall" | "rageclick" | "backtrack";
   expiresAt?: string; // ISO string
   extra?: Record<string, string | number | boolean | null>;

@@ -354,6 +354,7 @@ export function createDecisionClient(
         body: decision.body,
         ctaText: decision.ctaText,
         slotId: decision.slotId,
+        quadrant: decision.quadrant,
         frictionType: decision.frictionType,
         expiresAt: decision.expiresAt,
         extra: decision.extra,
