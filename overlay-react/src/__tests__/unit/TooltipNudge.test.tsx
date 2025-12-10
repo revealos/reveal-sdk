@@ -184,10 +184,13 @@ describe('TooltipNudge', () => {
     const tooltip = screen.getByRole('tooltip');
     expect(tooltip).toBeInTheDocument();
     // Should have positioning styles (top and left from inline styles)
-    expect(tooltip).toHaveStyle({ top: '16px' });
+    // Top value is calculated by centering tooltip in quadrant, not a fixed value
+    const style = tooltip.getAttribute('style');
+    expect(style).toContain('top:');
+    expect(style).toMatch(/top:\s*[\d.]+px/);
     // Should have left style set (exact value depends on viewport width)
-    const leftStyle = tooltip.getAttribute('style');
-    expect(leftStyle).toContain('left:');
+    expect(style).toContain('left:');
+    expect(style).toMatch(/left:\s*[\d.]+px/);
     // Should have fixed positioning class
     expect(tooltip).toHaveClass('fixed');
   });
@@ -209,10 +212,13 @@ describe('TooltipNudge', () => {
       const tooltip = screen.getByRole('tooltip');
       expect(tooltip).toBeInTheDocument();
       // Should be positioned (top and left styles set)
-      expect(tooltip).toHaveStyle({ top: '16px' });
+      // Top value is calculated by centering tooltip in quadrant, not a fixed value
+      const style = tooltip.getAttribute('style');
+      expect(style).toContain('top:');
+      expect(style).toMatch(/top:\s*[\d.]+px/);
       // Should have left style set (exact value depends on viewport width and quadrant)
-      const leftStyle = tooltip.getAttribute('style');
-      expect(leftStyle).toContain('left:');
+      expect(style).toContain('left:');
+      expect(style).toMatch(/left:\s*[\d.]+px/);
       // Should have fixed positioning class
       expect(tooltip).toHaveClass('fixed');
     });
