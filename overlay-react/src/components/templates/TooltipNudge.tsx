@@ -8,12 +8,11 @@
 
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, type CSSProperties } from "react"
 import type { UINudgeDecision, NudgeQuadrant } from "../../types/NudgeDecision"
 import { computeQuadrantPosition } from "../../layout/computeQuadrantPosition"
 import { useKeyboardDismiss } from "../../hooks/useKeyboardDismiss"
 import { Z_INDEX } from "../../utils/constants"
-import { injectRevealGlassPanelStyles } from "../../utils/injectStyles"
 
 
 interface TooltipNudgeProps {
@@ -72,11 +71,69 @@ export function TooltipNudge({
   })
   const [arrowPosition, setArrowPosition] = useState<{ top: number; left: number } | null>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
+  const arrowWrapperRef = useRef<HTMLDivElement>(null)
+  const arrowAnimationRef = useRef<Animation | null>(null)
 
-  // Inject styles on mount (idempotent - only runs once)
+  // Arrow float animation (WAAPI)
+  // - Avoids global CSS/keyframes and reduces interference with host apps.
+  // - Respects prefers-reduced-motion.
   useEffect(() => {
-    injectRevealGlassPanelStyles()
-  }, [])
+    // Only animate when the arrow is actually rendered
+    if (!arrowPosition) {
+      // If arrow disappears, stop any prior animation
+      arrowAnimationRef.current?.cancel()
+      arrowAnimationRef.current = null
+      return
+    }
+
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const el = arrowWrapperRef.current
+    if (!el) {
+      return
+    }
+
+    // Respect reduced motion
+    try {
+      if (typeof window.matchMedia === "function") {
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        if (reduceMotion) {
+          return
+        }
+      }
+    } catch {
+      // If matchMedia fails, proceed without reduced-motion optimization
+    }
+
+    const animateFn = (el as any).animate
+    if (typeof animateFn !== "function") {
+      // WAAPI not available (e.g., some test environments)
+      return
+    }
+
+    // Cancel any previous animation before starting a new one
+    arrowAnimationRef.current?.cancel()
+    arrowAnimationRef.current = null
+
+    const anim = animateFn.call(
+      el,
+      [
+        { transform: "translateY(0px)" },
+        { transform: "translateY(-12px)" },
+        { transform: "translateY(0px)" },
+      ],
+      { duration: 6000, iterations: Infinity, easing: "ease-in-out" }
+    )
+
+    arrowAnimationRef.current = anim
+
+    return () => {
+      arrowAnimationRef.current?.cancel()
+      arrowAnimationRef.current = null
+    }
+  }, [!!arrowPosition])
 
   // Handle ESC key dismiss
   useKeyboardDismiss(() => {
@@ -179,18 +236,85 @@ export function TooltipNudge({
   const arrowPlacement = getArrowPlacement(quadrant)
   const ARROW_SIZE = 56 // Size of the circular arrow chip
 
+  // Inline styles (self-contained: no dependency on host CSS/Tailwind)
+  const tooltipStyle: CSSProperties = {
+    position: "fixed",
+    top: `${position.top}px`,
+    left: `${position.left}px`,
+    zIndex: Z_INDEX.TOOLTIP,
+    pointerEvents: "auto",
+    boxSizing: "border-box",
+    width: "clamp(238px, 34vw, 408px)", // 85% of original sizing
+    background: "hsla(240, 15%, 14%, 0.32)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
+    borderRadius: "20px",
+    padding: "24px",
+    border: "1px solid rgba(255, 255, 255, 0.22)",
+    boxShadow:
+      "0 0 0 1px rgba(0, 0, 0, 0.30) inset, 0 0 8px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.40)",
+    color: "#ffffff",
+    textAlign: "center",
+  }
+
+  const titleStyle: CSSProperties = {
+    margin: "0 0 12px 0",
+    fontSize: "20px",
+    fontWeight: 600,
+    lineHeight: 1.25,
+    color: "#ffffff",
+    textShadow: "0 0 6px rgba(255, 255, 255, 0.18)",
+  }
+
+  const bodyStyle: CSSProperties = {
+    margin: "0 0 12px 0",
+    fontSize: "18px",
+    fontWeight: 700,
+    lineHeight: 1.35,
+    color: "rgba(255, 255, 255, 0.92)",
+  }
+
+  const ctaButtonStyle: CSSProperties = {
+    display: "inline-block",
+    margin: "0 0 12px 0",
+    padding: 0,
+    border: "none",
+    background: "transparent",
+    fontSize: "16px",
+    fontWeight: 500,
+    lineHeight: 1.3,
+    color: "#ffffff",
+    cursor: "pointer",
+  }
+
+  const gotItButtonStyle: CSSProperties = {
+    display: "inline-block",
+    margin: 0,
+    padding: 0,
+    border: "none",
+    background: "transparent",
+    fontSize: "16px",
+    fontWeight: 500,
+    lineHeight: 1.3,
+    color: "rgba(255, 255, 255, 0.80)",
+    cursor: "pointer",
+  }
+
   return (
     <>
       {/* Arrow bubble - glassmorphic chip with float animation */}
       {arrowPosition && (
         <div
-          className="fixed pointer-events-none animate-float"
+          ref={arrowWrapperRef}
           style={{
+            position: "fixed",
+            pointerEvents: "none",
             top: `${arrowPosition.top}px`,
             left: `${arrowPosition.left}px`,
             width: `${ARROW_SIZE}px`,
             height: `${ARROW_SIZE}px`,
             zIndex: Z_INDEX.TOOLTIP,
+            willChange: "transform",
           }}
           aria-hidden="true"
         >
@@ -239,12 +363,7 @@ export function TooltipNudge({
       {/* Tooltip - glassmorphic floating panel */}
       <div
         ref={tooltipRef}
-        className="fixed reveal-glass-panel pointer-events-auto"
-        style={{
-          top: `${position.top}px`,
-          left: `${position.left}px`,
-          zIndex: Z_INDEX.TOOLTIP,
-        }}
+        style={tooltipStyle}
         role="tooltip"
         aria-labelledby={hasTitle ? `tooltip-title-${decision.id}` : undefined}
       >
@@ -253,7 +372,7 @@ export function TooltipNudge({
         {hasTitle && (
           <h3
             id={`tooltip-title-${decision.id}`}
-            className="text-xl font-semibold text-white mb-3"
+            style={titleStyle}
           >
             {decision.title}
           </h3>
@@ -261,14 +380,14 @@ export function TooltipNudge({
 
         {/* Body/Message */}
         {displayBody && (
-          <p className="text-lg text-white mb-3">{displayBody}</p>
+          <p style={bodyStyle}>{displayBody}</p>
         )}
 
         {/* CTA Button (if present) - primary action */}
         {decision.ctaText && (
           <button
             onClick={handleActionClick}
-            className="text-base font-medium text-white hover:text-white/90 underline mb-3"
+            style={ctaButtonStyle}
             aria-label={decision.ctaText}
           >
             {decision.ctaText}
@@ -281,7 +400,7 @@ export function TooltipNudge({
         {decision.dismissible !== false && !decision.ctaText && (
           <button
             onClick={handleDismiss}
-            className="text-base text-white/80 hover:text-white underline"
+            style={gotItButtonStyle}
             aria-label="Got it"
           >
             ✔️ Got it

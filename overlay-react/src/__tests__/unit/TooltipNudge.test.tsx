@@ -191,8 +191,8 @@ describe('TooltipNudge', () => {
     // Should have left style set (exact value depends on viewport width)
     expect(style).toContain('left:');
     expect(style).toMatch(/left:\s*[\d.]+px/);
-    // Should have fixed positioning class
-    expect(tooltip).toHaveClass('fixed');
+    // Should have fixed positioning (inline styles)
+    expect(style).toContain('position: fixed');
   });
 
   it('positions tooltip in specified quadrant', async () => {
@@ -219,8 +219,8 @@ describe('TooltipNudge', () => {
       // Should have left style set (exact value depends on viewport width and quadrant)
       expect(style).toContain('left:');
       expect(style).toMatch(/left:\s*[\d.]+px/);
-      // Should have fixed positioning class
-      expect(tooltip).toHaveClass('fixed');
+      // Should have fixed positioning (inline styles)
+      expect(style).toContain('position: fixed');
     });
   });
 

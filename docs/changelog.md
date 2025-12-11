@@ -46,13 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Translucent dark background with backdrop blur for depth
   - Subtle borders and shadows for polished appearance
   - Responsive width (85% of original, clamped between 238px and 408px)
-  - Automatic style injection via `injectRevealGlassPanelStyles()` utility
-  - Styles are automatically loaded without requiring manual imports in consuming applications
+  - Self-contained inline styles (no CSS imports or global style injection required)
 - **Arrow Bubble Indicator**: Visual indicator for tooltip positioning
   - Glassmorphic circular bubble (56px) with arrow icon (24px)
   - Appears above tooltip for bottom quadrants (pointing up) or below tooltip for top quadrants (pointing down)
   - Always centered horizontally on the tooltip regardless of quadrant
-  - Features floating animation (12px vertical displacement) for visual interest
+  - Features floating animation (12px vertical displacement) via Web Animations API (respects `prefers-reduced-motion`)
   - 24px spacing between tooltip and arrow bubble
 - **SDK Safety Hardening**: Comprehensive error handling and crash prevention
   - Detector initialization wrapped in `safeTry` to prevent `Reveal.init()` crashes
