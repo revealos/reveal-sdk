@@ -106,8 +106,10 @@ Outbound data is strictly limited to:
 
 **All outbound calls go through:**
 - `packages/client/src/modules/transport.ts`
+  - `sendBatch()` - For event batches to `/ingest` endpoint
+  - `sendDecisionRequest()` - For decision requests to `/decide` endpoint
 
-This is the **single auditable file** for all network requests. No other file in the SDK may call `fetch`, `XMLHttpRequest`, or any network API.
+This is the **single auditable file** for all network requests. No other file in the SDK may call `fetch`, `XMLHttpRequest`, or any network API. DecisionClient delegates HTTP requests to Transport.
 
 ---
 
@@ -141,7 +143,7 @@ The Overlay receives a strict JSON object:
   title?: string,
   body?: string,
   ctaText?: string,
-  quadrant?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "auto",
+  quadrant?: "topLeft" | "topCenter" | "topRight" | "bottomLeft" | "bottomCenter" | "bottomRight",
   frictionType?: "stall" | "rageclick" | "backtrack",
   expiresAt?: string,
   extra?: Record<string, string | number | boolean | null>

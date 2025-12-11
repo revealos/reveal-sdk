@@ -4,7 +4,7 @@
  * Tests for HTTP transport, retry logic, error classification, and beacon mode.
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach, beforeAll, afterAll } from 'vitest';
 import {
   createTransport,
   type Transport,
@@ -86,6 +86,7 @@ describe('Transport', () => {
       transport = createTransport(options);
       expect(transport).toBeDefined();
       expect(typeof transport.sendBatch).toBe('function');
+      expect(typeof transport.sendDecisionRequest).toBe('function');
     });
 
     it('should throw if endpointUrl is missing', () => {
@@ -512,6 +513,182 @@ describe('Transport', () => {
       expect(payload).toHaveProperty('timestamp');
       expect(Array.isArray(payload.events)).toBe(true);
       expect(payload.events.length).toBe(1);
+    });
+  });
+
+  describe('sendDecisionRequest', () => {
+    const createMockDecisionPayload = () => ({
+      projectId: 'test-project',
+      sessionId: 'test-session',
+      friction: {
+        type: 'stall' as const,
+        pageUrl: 'https://example.com',
+        selector: null,
+        timestamp: Date.now(),
+        extra: {},
+      },
+    });
+
+    it('should send decision request successfully', async () => {
+      const payload = createMockDecisionPayload();
+      mockFetch = vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () => Promise.resolve({ decision: { nudgeId: 'nudge_1', templateId: 'tooltip' } }),
+        } as Response)
+      ) as any;
+      vi.stubGlobal('fetch', mockFetch);
+
+      transport = createTransport({
+        endpointUrl: 'https://api.example.com/ingest',
+        clientKey: 'test-key',
+        logger: mockLogger,
+      });
+
+      const result = await transport.sendDecisionRequest(
+        'https://api.example.com/decide',
+        payload,
+        { timeoutMs: 200, clientKey: 'test-key' }
+      );
+
+      expect(result).toBeDefined();
+      expect(result.decision).toBeDefined();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return null on non-2xx response', async () => {
+      const payload = createMockDecisionPayload();
+      mockFetch = vi.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+        } as Response)
+      ) as any;
+      vi.stubGlobal('fetch', mockFetch);
+
+      transport = createTransport({
+        endpointUrl: 'https://api.example.com/ingest',
+        clientKey: 'test-key',
+        logger: mockLogger,
+      });
+
+      const result = await transport.sendDecisionRequest(
+        'https://api.example.com/decide',
+        payload,
+        { timeoutMs: 200, clientKey: 'test-key' }
+      );
+
+      expect(result).toBeNull();
+      expect(mockLogger.logError).toHaveBeenCalled();
+    });
+
+    it('should handle timeout correctly', async () => {
+      const payload = createMockDecisionPayload();
+      
+      // Create a fetch that rejects with AbortError when signal is aborted
+      let abortController: AbortController | null = null;
+      mockFetch = vi.fn((url, options) => {
+        abortController = (options as any)?.signal?.controller || null;
+        return new Promise((_, reject) => {
+          // Simulate abort after a delay
+          setTimeout(() => {
+            const error = new Error('Request aborted');
+            error.name = 'AbortError';
+            reject(error);
+          }, 100); // Will be aborted before this
+        });
+      }) as any;
+      vi.stubGlobal('fetch', mockFetch);
+
+      transport = createTransport({
+        endpointUrl: 'https://api.example.com/ingest',
+        clientKey: 'test-key',
+        logger: mockLogger,
+      });
+
+      // Use a short timeout for testing (50ms)
+      const resultPromise = transport.sendDecisionRequest(
+        'https://api.example.com/decide',
+        payload,
+        { timeoutMs: 50, clientKey: 'test-key' }
+      );
+
+      // Wait for the abort to occur (should happen after 50ms)
+      const startTime = Date.now();
+      const result = await resultPromise;
+      const elapsed = Date.now() - startTime;
+
+      // Should return null due to timeout
+      expect(result).toBeNull();
+      // Should have logged an error about timeout
+      expect(mockLogger.logError).toHaveBeenCalled();
+      // Should have taken approximately 50ms (timeout duration)
+      expect(elapsed).toBeGreaterThanOrEqual(40); // Allow some margin
+      expect(elapsed).toBeLessThan(150); // Should complete quickly after timeout
+    }, 5000); // Test timeout 5s
+
+    it('should include correct headers in decision request', async () => {
+      const payload = createMockDecisionPayload();
+      mockFetch = vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () => Promise.resolve({ decision: null }),
+        } as Response)
+      ) as any;
+      vi.stubGlobal('fetch', mockFetch);
+
+      transport = createTransport({
+        endpointUrl: 'https://api.example.com/ingest',
+        clientKey: 'test-key',
+        logger: mockLogger,
+      });
+
+      await transport.sendDecisionRequest(
+        'https://api.example.com/decide',
+        payload,
+        { timeoutMs: 200, clientKey: 'custom-key' }
+      );
+
+      const [, options] = (mockFetch as any).mock.calls[0];
+      expect(options.method).toBe('POST');
+      expect(options.headers['Content-Type']).toBe('application/json');
+      expect(options.headers['X-Reveal-Client-Key']).toBe('custom-key');
+    });
+
+    it('should include correct payload in decision request', async () => {
+      const payload = createMockDecisionPayload();
+      mockFetch = vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () => Promise.resolve({ decision: null }),
+        } as Response)
+      ) as any;
+      vi.stubGlobal('fetch', mockFetch);
+
+      transport = createTransport({
+        endpointUrl: 'https://api.example.com/ingest',
+        clientKey: 'test-key',
+        logger: mockLogger,
+      });
+
+      await transport.sendDecisionRequest(
+        'https://api.example.com/decide',
+        payload,
+        { timeoutMs: 200, clientKey: 'test-key' }
+      );
+
+      const [, options] = (mockFetch as any).mock.calls[0];
+      const requestPayload = JSON.parse(options.body);
+      expect(requestPayload.projectId).toBe('test-project');
+      expect(requestPayload.sessionId).toBe('test-session');
+      expect(requestPayload.friction.type).toBe('stall');
     });
   });
 

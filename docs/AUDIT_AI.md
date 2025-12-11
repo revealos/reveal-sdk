@@ -48,7 +48,7 @@ Identify all outbound network calls and verify invariants.
 - List all files containing fetch/HTTP requests.
 - List all endpoints called.
 - Confirm all outbound calls go through the designated transport module (packages/client/src/modules/transport.ts).
-- Verify that decisionClient.ts also uses a controlled fetch path.
+- Verify that all network requests go through transport.ts (DecisionClient delegates to Transport).
 
 PASS / WARN / FAIL with short justification.
 
@@ -109,18 +109,15 @@ Output Format:
 
 ### HTTP/HTTPS Request Boundaries
 
-**The only files that send HTTP/HTTPS requests are:**
+**The only file that sends HTTP/HTTPS requests is:**
 
 1. `packages/client/src/modules/transport.ts`
-   - Function: `performFetchRequest()` (line 191)
-   - Purpose: Send event batches to `/ingest` endpoint
-   - Also uses: `sendWithBeacon()` for page unload (line 331)
+   - Function: `sendBatch()` - Sends event batches to `/ingest` endpoint
+   - Function: `sendDecisionRequest()` - Sends decision requests to `/decide` endpoint
+   - Also uses: `sendWithBeacon()` for page unload scenarios
+   - This is the single auditable file for all network requests
 
-2. `packages/client/src/modules/decisionClient.ts`
-   - Function: `sendDecisionRequest()` (line 200)
-   - Purpose: Request nudge decisions from `/decide` endpoint
-
-**Verification**: Search the codebase for `fetch(`, `XMLHttpRequest`, `axios`, `http.`, `https.` - only these two files should contain network calls.
+**Verification**: Search the codebase for `fetch(`, `XMLHttpRequest`, `axios`, `http.`, `https.` - only `transport.ts` should contain network calls. DecisionClient delegates HTTP requests to Transport.
 
 ### PII Scrubbing Boundaries
 
@@ -149,7 +146,7 @@ Output Format:
    - Metadata: `batchId`, `eventCount`, `endpoint` (no raw PII)
    - Note: Low-severity audit logs only appear in debug mode (not production console)
 
-2. `packages/client/src/modules/decisionClient.ts` → `sendDecisionRequest()` function (line 200)
+2. `packages/client/src/modules/transport.ts` → `sendDecisionRequest()` function
    - Logs before sending decision request to `/decide`
    - Metadata: `frictionType`, `endpoint` (no raw PII)
 
@@ -167,7 +164,7 @@ Output Format:
    - `title?: string`
    - `body?: string`
    - `ctaText?: string`
-   - `quadrant?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "auto"`
+   - `quadrant?: "topLeft" | "topCenter" | "topRight" | "bottomLeft" | "bottomCenter" | "bottomRight"`
    - No HTML fields, no executable code fields
 
 2. **React Rendering**: All content rendered as React text nodes:

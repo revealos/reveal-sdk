@@ -140,7 +140,7 @@ This satisfies the **"blast radius containment"** requirement for governance tea
 ### Code-Level Guarantees
 
 - ✅ **AI-auditable structure** - See [AUDIT_AI.md](./AUDIT_AI.md) for audit prompts
-- ✅ **Clear ingress/egress boundaries** - Single transport layer, single decision client
+- ✅ **Clear ingress/egress boundaries** - Single transport layer (Transport handles both event batches and decision requests)
 - ✅ **Strict type-level guarantees** - TypeScript enforces schema compliance
 - ✅ **Sanitizer ensures payload hygiene** - PII redaction before transmission
 

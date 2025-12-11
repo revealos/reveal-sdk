@@ -1,17 +1,21 @@
 /**
  * Transport Module
  * 
- * Handles HTTP transport of event batches to the backend /ingest endpoint.
+ * Handles HTTP transport for all backend communication.
  * 
  * Responsibilities:
- * - Send event batches via HTTP (fetch)
+ * - Send event batches to /ingest endpoint (with retries)
+ * - Send decision requests to /decide endpoint (fail-fast)
  * - Use sendBeacon for page unload scenarios
  * - Handle timeouts and network errors
- * - Retry failed requests with exponential backoff
  * - Classify errors as retryable vs non-retryable
+ * - Single auditable point for all network requests
  * 
  * Note: This module does NOT transform events or make decisions.
- * It is a simple, fire-and-forget sender.
+ * It is a simple HTTP transport layer.
+ * 
+ * SECURITY: This is the single auditable file for all network requests.
+ * All fetch calls must go through this module.
  * 
  * @module modules/transport
  */
@@ -37,10 +41,33 @@ export interface TransportOptions {
 }
 
 /**
+ * Decision request payload (canonical shape for /decide endpoint)
+ */
+export interface DecideRequestPayload {
+  projectId: string;
+  sessionId: string;
+  friction: {
+    type: "stall" | "rageclick" | "backtrack";
+    pageUrl: string;
+    selector: string | null;
+    timestamp: number;
+    extra?: Record<string, any>;
+  };
+}
+
+/**
  * Transport interface
  */
 export interface Transport {
   sendBatch(events: BaseEvent[], mode?: "normal" | "beacon"): Promise<void>;
+  sendDecisionRequest(
+    endpoint: string,
+    payload: DecideRequestPayload,
+    options: {
+      timeoutMs: number;
+      clientKey?: string;
+    }
+  ): Promise<any | null>;
 }
 
 /**
@@ -443,10 +470,120 @@ export function createTransport(options: TransportOptions): Transport {
   }
 
   // ──────────────────────────────────────────────────────────────────────
+  // INTERNAL: sendDecisionRequest()
+  // ──────────────────────────────────────────────────────────────────────
+  // Send decision request to /decide endpoint with strict timeout
+  // Returns: parsed response object or null on error
+  // Note: This method does NOT validate the response - that's DecisionClient's responsibility
+  async function sendDecisionRequest(
+    endpoint: string,
+    payload: DecideRequestPayload,
+    options: {
+      timeoutMs: number;
+      clientKey?: string;
+    }
+  ): Promise<any | null> {
+    const { timeoutMs, clientKey: requestClientKey } = options;
+    const requestKey = requestClientKey || clientKey; // Use provided key or fallback to transport's key
+
+    // Create abort controller for timeout enforcement
+    const abortController = createAbortController();
+    const timeoutId = setTimeout(() => {
+      if (abortController.abort) {
+        abortController.abort();
+      }
+    }, timeoutMs);
+
+    try {
+      // ────────────────────────────────────────────────────────────────
+      // SECURITY: Audit log before sending decision request
+      // Metadata contains summary only (no raw PII, friction.extra already scrubbed)
+      // ────────────────────────────────────────────────────────────────
+      logAuditEvent(createAuditEvent(
+        "data_access",
+        "low",
+        "Decision request sent to backend",
+        {
+          frictionType: payload.friction.type,
+          endpoint,
+        }
+      ));
+
+      // ────────────────────────────────────────────────────────────────
+      // SEND HTTP REQUEST
+      // ────────────────────────────────────────────────────────────────
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (requestKey) {
+        headers["X-Reveal-Client-Key"] = requestKey;
+      }
+
+      const response = await fetchFn(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        signal: abortController.signal as AbortSignal | undefined,
+      });
+
+      clearTimeout(timeoutId);
+
+      // ────────────────────────────────────────────────────────────────
+      // CHECK HTTP STATUS
+      // ────────────────────────────────────────────────────────────────
+      if (!response.ok) {
+        logger?.logError("Transport: decision request non-2xx response", {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        return null;
+      }
+
+      // ────────────────────────────────────────────────────────────────
+      // PARSE JSON RESPONSE
+      // ────────────────────────────────────────────────────────────────
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (parseError) {
+        logger?.logError("Transport: failed to parse decision response JSON", {
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+        });
+        return null;
+      }
+
+      return responseData;
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      // ────────────────────────────────────────────────────────────────
+      // HANDLE ERRORS
+      // ────────────────────────────────────────────────────────────────
+      if (error instanceof Error && error.name === "AbortError") {
+        logger?.logError("Transport: decision request timeout", {
+          timeoutMs,
+        });
+      } else if (error instanceof Error && error.message?.includes("fetch")) {
+        logger?.logError("Transport: decision request network error", {
+          error: error.message,
+        });
+      } else {
+        logger?.logError("Transport: decision request failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      return null;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
   // RETURN PUBLIC API
   // ──────────────────────────────────────────────────────────────────────
   return {
     sendBatch,
+    sendDecisionRequest,
   };
 }
 

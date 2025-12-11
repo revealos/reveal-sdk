@@ -4,14 +4,14 @@
  * Sends friction decision requests from the SDK to the backend /decide endpoint.
  *
  * Responsibilities:
- * - Send FrictionSignal to backend /decide endpoint
+ * - Send FrictionSignal to backend /decide endpoint via Transport
  * - Include minimal context (projectId, sessionId, friction)
+ * - Validate and parse WireNudgeDecision response
  * - Return WireNudgeDecision or null
- * - Handle timeouts and errors gracefully (never throw)
- * - Enforce strict 200ms timeout via AbortController
+ * - Handle errors gracefully (never throw)
  *
  * Note: This module does NOT cache decisions or apply rule logic.
- * It is a simple, fail-safe HTTP client.
+ * HTTP transport is delegated to Transport module (single auditable boundary).
  *
  * @module modules/decisionClient
  */
@@ -19,8 +19,8 @@
 import type { FrictionSignal } from "../types/friction";
 import type { WireNudgeDecision } from "../types/decisions";
 import type { Logger } from "../utils/logger";
+import type { Transport, DecideRequestPayload } from "./transport";
 import { scrubPII } from "../security/dataSanitization";
-import { logAuditEvent, createAuditEvent } from "../security/auditLogger";
 
 /**
  * DecisionClient options
@@ -32,7 +32,7 @@ export interface DecisionClientOptions {
   environment: string;
   clientKey?: string;
   logger?: Logger;
-  fetchFn?: typeof fetch;
+  transport: Transport;
 }
 
 /**
@@ -53,20 +53,7 @@ export interface DecisionClient {
   ): Promise<WireNudgeDecision | null>;
 }
 
-/**
- * Request payload sent to /decide endpoint (canonical shape)
- */
-interface DecideRequestPayload {
-  projectId: string;
-  sessionId: string;
-  friction: {
-    type: "stall" | "rageclick" | "backtrack";
-    pageUrl: string;
-    selector: string | null;
-    timestamp: number;
-    extra?: Record<string, any>;
-  };
-}
+// DecideRequestPayload is now exported from transport.ts
 
 /**
  * Create a new DecisionClient instance
@@ -86,7 +73,7 @@ export function createDecisionClient(
     timeoutMs = 200,
     clientKey,
     logger,
-    fetchFn = globalFetch,
+    transport,
   } = options;
 
   // ──────────────────────────────────────────────────────────────────────
@@ -203,94 +190,19 @@ export function createDecisionClient(
   async function sendDecisionRequest(
     payload: DecideRequestPayload
   ): Promise<any | null> {
-    // Create abort controller for timeout enforcement
-    const abortController = createAbortController();
-    const timeoutId = setTimeout(() => {
-      abortController.abort();
-    }, timeoutMs);
-
-    try {
-      // ────────────────────────────────────────────────────────────────
-      // SECURITY: Audit log before sending decision request
-      // Metadata contains summary only (no raw PII, friction.extra already scrubbed)
-      // ────────────────────────────────────────────────────────────────
-      logAuditEvent(createAuditEvent(
-        "data_access",
-        "low",
-        "Decision request sent to backend",
-        {
-          frictionType: payload.friction.type,
-          endpoint,
-        }
-      ));
-
-      // ────────────────────────────────────────────────────────────────
-      // SEND HTTP REQUEST
-      // ────────────────────────────────────────────────────────────────
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-
-      if (clientKey) {
-        headers["X-Reveal-Client-Key"] = clientKey;
+    // Delegate HTTP request to Transport module
+    // Transport handles: timeout, audit logging, error handling
+    const response = await transport.sendDecisionRequest(
+      endpoint,
+      payload,
+      {
+        timeoutMs,
+        clientKey,
       }
+    );
 
-      const response = await fetchFn(endpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        signal: abortController.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      // ────────────────────────────────────────────────────────────────
-      // CHECK HTTP STATUS
-      // ────────────────────────────────────────────────────────────────
-      if (!response.ok) {
-        logger?.logError("DecisionClient: non-2xx response", {
-          status: response.status,
-          statusText: response.statusText,
-        });
-        return null;
-      }
-
-      // ────────────────────────────────────────────────────────────────
-      // PARSE JSON RESPONSE
-      // ────────────────────────────────────────────────────────────────
-      let responseData;
-      try {
-        responseData = await response.json();
-      } catch (parseError) {
-        logger?.logError("DecisionClient: failed to parse JSON response", {
-          error: parseError instanceof Error ? parseError.message : String(parseError),
-        });
-        return null;
-      }
-
-      return responseData;
-    } catch (error) {
-      clearTimeout(timeoutId);
-
-      // ────────────────────────────────────────────────────────────────
-      // HANDLE ERRORS
-      // ────────────────────────────────────────────────────────────────
-      if (error instanceof Error && error.name === "AbortError") {
-        logger?.logError("DecisionClient: request timeout", {
-          timeoutMs,
-        });
-      } else if (error instanceof Error && error.message?.includes("fetch")) {
-        logger?.logError("DecisionClient: network error", {
-          error: error.message,
-        });
-      } else {
-        logger?.logError("DecisionClient: request failed", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      return null;
-    }
+    // Response is already parsed JSON or null (Transport handles parsing)
+    return response;
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -376,28 +288,10 @@ export function createDecisionClient(
     return Date.now();
   }
 
-  function createAbortController(): AbortController {
-    if (typeof AbortController !== "undefined") {
-      return new AbortController();
-    }
-    // Fallback for older browsers (timeout won't work, but won't crash)
-    return {
-      abort: () => {},
-      signal: null as any,
-    };
-  }
-
   // ──────────────────────────────────────────────────────────────────────
   // RETURN PUBLIC API
   // ──────────────────────────────────────────────────────────────────────
   return {
     requestDecision,
   };
-}
-
-/**
- * Global fetch wrapper
- */
-function globalFetch(...args: Parameters<typeof fetch>): ReturnType<typeof fetch> {
-  return fetch(...args);
 }

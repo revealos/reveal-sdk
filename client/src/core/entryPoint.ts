@@ -248,14 +248,19 @@ export async function init(
 
     // STEP: Initialize DecisionClient (requests nudge decisions from backend)
     safeTry(() => {
-    decisionClient = createDecisionClient({
-      endpoint: minimalConfig.decision.endpoint,
-      timeoutMs: minimalConfig.decision.timeoutMs,
-      projectId: minimalConfig.projectId,
-      environment: minimalConfig.environment,
-      clientKey: clientKey,
-      logger: loggerRef,
-    });
+      if (!transport) {
+        loggerRef.logError("Transport not available, DecisionClient cannot be created");
+        return;
+      }
+      decisionClient = createDecisionClient({
+        endpoint: minimalConfig.decision.endpoint,
+        timeoutMs: minimalConfig.decision.timeoutMs,
+        projectId: minimalConfig.projectId,
+        environment: minimalConfig.environment,
+        clientKey: clientKey,
+        logger: loggerRef,
+        transport: transport,
+      });
       loggerRef.logDebug("DecisionClient initialized");
     }, loggerRef, "DecisionClient creation");
 

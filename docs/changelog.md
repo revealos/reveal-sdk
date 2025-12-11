@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Unified Transport Architecture**: Consolidated Transport and DecisionClient HTTP logic into single Transport module
+  - Transport now provides two methods: `sendBatch()` for event batches and `sendDecisionRequest()` for decision requests
+  - Single `globalFetch()` wrapper eliminates duplicate fetch implementations (fixes audit concern)
+  - Single audit logging point for all network requests in `transport.ts`
+  - DecisionClient now delegates HTTP requests to Transport instead of using its own fetch wrapper
+  - Maintains architectural separation: EventPipeline uses `sendBatch()`, DecisionClient uses `sendDecisionRequest()`
+  - Performance characteristics preserved: 10s timeout with retries for events, 200ms strict timeout for decisions
+  - No breaking changes: all public APIs remain unchanged
+  - Updated all documentation to reflect single transport boundary
+  - Comprehensive test coverage: 114 tests passing (31 transport tests, 14 decisionClient tests)
+
 ### Added
 - **Glassmorphic Tooltip Design**: Modern glassmorphic styling for tooltip nudges
   - Translucent dark background with backdrop blur for depth

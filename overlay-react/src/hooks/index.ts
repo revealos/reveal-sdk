@@ -8,6 +8,5 @@
 
 export { useNudgeVisibility } from './useNudgeVisibility';
 export { useKeyboardDismiss } from './useKeyboardDismiss';
-export { useTargetRect } from './useTargetRect';
 export { useTrackNudgeShown } from './useTrackNudgeShown';
 
