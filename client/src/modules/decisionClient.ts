@@ -20,7 +20,7 @@ import type { FrictionSignal } from "../types/friction";
 import type { WireNudgeDecision } from "../types/decisions";
 import type { Logger } from "../utils/logger";
 import type { Transport, DecideRequestPayload } from "./transport";
-import { scrubPII } from "../security/dataSanitization";
+import { scrubPII, scrubUrlPII } from "../security/dataSanitization";
 
 /**
  * DecisionClient options
@@ -176,7 +176,8 @@ export function createDecisionClient(
       // SECURITY: Scrub PII from friction.extra before sending
       friction: {
         type: signal.type,
-        pageUrl: signal.pageUrl,
+        // SECURITY: Scrub obvious PII embedded in URL strings (email-in-URL)
+        pageUrl: scrubUrlPII(signal.pageUrl),
         selector: signal.selector ?? null,
         timestamp: signal.timestamp,
         extra: signal.extra ? scrubPII(signal.extra) : {},

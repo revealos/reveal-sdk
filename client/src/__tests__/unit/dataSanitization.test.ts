@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { scrubPII } from '../../security/dataSanitization';
+import { scrubPII, scrubUrlPII } from '../../security/dataSanitization';
 
 describe('scrubPII', () => {
   it('should redact email addresses', () => {
@@ -115,6 +115,32 @@ describe('scrubPII', () => {
     const input = ['email@example.com', 'phone'];
     const result = scrubPII(input as any);
     expect(result).toEqual(input);
+  });
+});
+
+describe('scrubUrlPII', () => {
+  it('should redact plain email addresses embedded in URLs', () => {
+    const input = 'https://app.example.com/invite?email=user@example.com&x=1';
+    const result = scrubUrlPII(input);
+    expect(result).toBe('https://app.example.com/invite?email=[REDACTED]&x=1');
+  });
+
+  it('should redact percent-encoded @ email addresses embedded in URLs', () => {
+    const input = 'https://app.example.com/invite?email=user%40example.com&x=1';
+    const result = scrubUrlPII(input);
+    expect(result).toBe('https://app.example.com/invite?email=[REDACTED]&x=1');
+  });
+
+  it('should redact email addresses in path segments', () => {
+    const input = 'https://app.example.com/invite/user@example.com/accept';
+    const result = scrubUrlPII(input);
+    expect(result).toBe('https://app.example.com/invite/[REDACTED]/accept');
+  });
+
+  it('should leave non-email URLs unchanged', () => {
+    const input = 'https://app.example.com/path?user=abc&x=1';
+    const result = scrubUrlPII(input);
+    expect(result).toBe(input);
   });
 });
 

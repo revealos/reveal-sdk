@@ -132,6 +132,39 @@ export function scrubPII(data: Record<string, any>): Record<string, any> {
 }
 
 /**
+ * Scrub PII embedded in URL strings.
+ *
+ * Scope: only used for known URL fields (e.g. FrictionSignal.pageUrl, BaseEvent.path).
+ * Redacts obvious email-like substrings, including percent-encoded "@"
+ * (e.g. "user%40example.com").
+ *
+ * Note: This is intentionally string-based (no URL parsing) so it never throws.
+ */
+export function scrubUrlPII(url: string): string {
+  if (typeof url !== "string") {
+    return url as unknown as string;
+  }
+
+  const input = url;
+  if (!input) {
+    return input;
+  }
+
+  // "Obvious" email: requires a dot-TLD segment to reduce false positives.
+  // Allow common email characters; keep conservative to avoid mangling non-emails.
+  const plainEmailRegex =
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+
+  // Percent-encoded "@" is %40 (case-insensitive). We still require a dot-TLD.
+  const encodedAtEmailRegex =
+    /[A-Z0-9._%+-]+%40[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+
+  let scrubbed = input.replace(encodedAtEmailRegex, "[REDACTED]");
+  scrubbed = scrubbed.replace(plainEmailRegex, "[REDACTED]");
+  return scrubbed;
+}
+
+/**
  * Minimize data to only required fields
  * 
  * NOTE: Currently a no-op. EventPayload contract already enforces flat structure

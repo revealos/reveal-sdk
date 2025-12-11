@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Validation happens before any modules are created, ensuring no network requests with insecure URLs
   - Implementation: `validateHttpsUrl()` and `validateAllBackendUrls()` in `security/inputValidation.ts`
   - Comprehensive test coverage: 15 unit tests for validation, 7 integration tests for SDK init
+- **URL PII Scrubbing (Email Redaction)**: Prevents email addresses leaking via URL strings
+  - Scrubs known URL fields before sending (e.g. friction `pageUrl`, event `path`)
+  - Redacts obvious email-like substrings, including percent-encoded `@` (`%40`)
+  - Uses the same redaction marker: `"[REDACTED]"`
+  - Implemented in `security/dataSanitization.ts` (`scrubUrlPII()`) and applied at SDK choke points
 
 ### Changed
 - **Environment-Aware Decision Request Timeout**: More realistic timeout defaults for production

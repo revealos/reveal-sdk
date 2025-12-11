@@ -129,9 +129,12 @@ Output Format:
 
 2. `packages/client/src/modules/decisionClient.ts` → `buildRequestPayload()` function (line 175)
    - Friction signal `extra` metadata is scrubbed via `scrubPII()` before building request
+   - Friction signal `pageUrl` is scrubbed via `scrubUrlPII()` to redact email-like substrings embedded in URL strings (including `%40`)
    - Location: When constructing `friction.extra` field
 
-**Implementation**: `packages/client/src/security/dataSanitization.ts` → `scrubPII()` function
+**Implementation**: `packages/client/src/security/dataSanitization.ts`
+- `scrubPII()` - Removes/masks known PII keys (email, phone, password, token, etc.)
+- `scrubUrlPII()` - Redacts obvious email addresses embedded inside known URL fields (string-based, no URL parsing)
 - Removes/masks known PII keys (email, phone, password, token, etc.)
 - Replaces values with `"[REDACTED]"`
 - Case-insensitive matching

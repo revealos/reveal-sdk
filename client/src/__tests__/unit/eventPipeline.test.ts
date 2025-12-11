@@ -183,6 +183,26 @@ describe('EventPipeline', () => {
       expect(sentEvents[0].user_agent).toBe('test-agent');
     });
 
+    it('should scrub email addresses embedded in path before sending', async () => {
+      // Override path to include email (both plain and encoded forms should be scrubbed)
+      (globalThis as any).window.location.pathname = '/invite/user@example.com';
+
+      pipeline.captureEvent('product', 'test_event');
+      await pipeline.flush(true);
+
+      const sentEvents = (mockTransport.sendBatch as any).mock.calls[0][0] as BaseEvent[];
+      expect(sentEvents[0].path).toBe('/invite/[REDACTED]');
+
+      // Also verify percent-encoded @ handling
+      (mockTransport.sendBatch as any).mockClear();
+      (globalThis as any).window.location.pathname = '/invite/user%40example.com';
+      pipeline.captureEvent('product', 'test_event_2');
+      await pipeline.flush(true);
+
+      const sentEvents2 = (mockTransport.sendBatch as any).mock.calls[0][0] as BaseEvent[];
+      expect(sentEvents2[0].path).toBe('/invite/[REDACTED]');
+    });
+
     it('should trigger flush when batch size is reached', async () => {
       // Add 5 events (batch size)
       for (let i = 0; i < 5; i++) {

@@ -22,7 +22,7 @@ import type { EventKind, BaseEvent, EventSource, EventPayload } from "../types/e
 import type { SessionManager } from "./sessionManager";
 import type { Transport } from "./transport";
 import type { Logger } from "../utils/logger";
-import { scrubPII } from "../security/dataSanitization";
+import { scrubPII, scrubUrlPII } from "../security/dataSanitization";
 
 /**
  * EventPipeline configuration
@@ -152,6 +152,12 @@ export function createEventPipeline(
     // Determine event_source: nudges are system-generated, all others are user-generated
     const event_source: EventSource = kind === "nudge" ? "system" : "user";
 
+    // SECURITY: Scrub obvious PII embedded in URL strings (email-in-URL)
+    const scrubbedPath =
+      typeof location?.path === "string" && location.path
+        ? scrubUrlPII(location.path)
+        : null;
+
     // Build enriched event
     const enrichedEvent: BaseEvent = {
       // Event identification
@@ -167,7 +173,7 @@ export function createEventPipeline(
       timestamp: now(),
 
       // Location context
-      path: location?.path ?? null,
+      path: scrubbedPath,
       route: location?.route ?? null,
       screen: location?.screen ?? null,
 

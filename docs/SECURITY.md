@@ -68,6 +68,11 @@ The SDK never reads:
 
 PII-like keys in event payloads are sanitized or redacted before transmission.
 
+Additionally, the SDK performs **URL PII scrubbing** for **known URL fields** before sending data:
+- Redacts **obvious email addresses embedded in URL strings** (e.g. `?email=user@example.com`)
+- Also redacts percent-encoded forms (e.g. `user%40example.com`)
+- Uses the same redaction marker: `"[REDACTED]"`
+
 ### 3. No HTML or JS execution from the backend
 
 **Enforced by:**

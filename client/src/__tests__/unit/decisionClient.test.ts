@@ -191,7 +191,7 @@ describe('DecisionClient', () => {
     it('should scrub PII from friction.extra before sending', async () => {
       const signal: FrictionSignal = {
         type: 'stall',
-        pageUrl: 'https://example.com',
+        pageUrl: 'https://example.com?email=test@example.com',
         selector: null,
         timestamp: Date.now(),
         extra: {
@@ -213,6 +213,7 @@ describe('DecisionClient', () => {
 
       const callArgs = (mockTransport.sendDecisionRequest as any).mock.calls[0];
       const payload = callArgs[1];
+      expect(payload.friction.pageUrl).toBe('https://example.com?email=[REDACTED]');
       expect(payload.friction.extra.email).toBe('[REDACTED]');
       expect(payload.friction.extra.phone).toBe('[REDACTED]');
       expect(payload.friction.extra.safeField).toBe('safe-value');
