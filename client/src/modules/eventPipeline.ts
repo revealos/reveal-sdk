@@ -158,6 +158,54 @@ export function createEventPipeline(
         ? scrubUrlPII(location.path)
         : null;
 
+    // Derived view identifier used by the engine and analytics.
+    // Computed from low-level location hints in priority order:
+    //   route || path || screen || "unknown"
+    // NOTE: we always use the scrubbedPath value to avoid leaking PII-laden URLs.
+    const viewKey =
+      (location?.route && location.route) ||
+      scrubbedPath ||
+      (location?.screen && location.screen) ||
+      "unknown";
+
+    // Optional overlay/UI context may be supplied by the caller as part of the payload.
+    // We lift it into top-level fields and remove it from the payload object to avoid
+    // duplication. These fields are developer-controlled identifiers (not user input).
+    let ui_layer: BaseEvent["ui_layer"] | undefined;
+    let modal_key: BaseEvent["modal_key"] | undefined;
+
+    if (scrubbedPayload && typeof scrubbedPayload === "object") {
+      const candidateUiLayer = (scrubbedPayload as any).ui_layer;
+      const candidateModalKey = (scrubbedPayload as any).modal_key;
+
+      if (typeof candidateUiLayer === "string") {
+        // Only accept known UiLayer values; ignore anything else.
+        if (
+          candidateUiLayer === "page" ||
+          candidateUiLayer === "modal" ||
+          candidateUiLayer === "drawer" ||
+          candidateUiLayer === "popover" ||
+          candidateUiLayer === "unknown"
+        ) {
+          ui_layer = candidateUiLayer;
+        }
+      }
+
+      if (typeof candidateModalKey === "string") {
+        modal_key = candidateModalKey;
+      } else if (candidateModalKey === null) {
+        modal_key = null;
+      }
+    }
+
+    // Remove lifted overlay context keys from the payload that will be sent
+    // so they only exist at the top level of BaseEvent.
+    const {
+      ui_layer: _omitUiLayer,
+      modal_key: _omitModalKey,
+      ...payloadWithoutOverlayContext
+    } = (scrubbedPayload || {}) as Record<string, any>;
+
     // Build enriched event
     const enrichedEvent: BaseEvent = {
       // Event identification
@@ -176,6 +224,9 @@ export function createEventPipeline(
       path: scrubbedPath,
       route: location?.route ?? null,
       screen: location?.screen ?? null,
+      viewKey,
+      ui_layer,
+      modal_key,
 
       // User agent (captured once)
       user_agent:
@@ -190,7 +241,7 @@ export function createEventPipeline(
         typeof window !== "undefined" ? window.innerHeight : 0,
 
       // Custom payload (transformed for nudge events, scrubbed of PII)
-      payload: scrubbedPayload || {},
+      payload: payloadWithoutOverlayContext || {},
     };
 
     return enrichedEvent;

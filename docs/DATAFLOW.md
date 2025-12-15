@@ -146,9 +146,15 @@ Outbound data is strictly limited to:
     session_id: string,
     is_treatment: boolean | null,
     timestamp: number,
+    // Raw location hints
     path: string | null,
     route: string | null,
     screen: string | null,
+    // Derived view identifier (PII-scrubbed): route || path || screen || "unknown"
+    viewKey: string,
+    // Optional overlay/UI context (developer-provided, non-PII identifiers)
+    ui_layer?: "page" | "modal" | "drawer" | "popover" | "unknown",
+    modal_key?: string | null,
     user_agent: string,
     viewport_width: number,
     viewport_height: number,

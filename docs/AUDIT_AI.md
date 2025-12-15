@@ -212,6 +212,7 @@ The Reveal SDK tracks three types of data:
 3. **Session Metadata** - Technical context for events
    - Session ID (generated UUID)
    - Page path, route, screen identifiers
+   - Derived view key (`viewKey = route || path || screen || "unknown"`, using a PII-scrubbed path)
    - User agent string
    - Viewport dimensions
    - Timestamps
