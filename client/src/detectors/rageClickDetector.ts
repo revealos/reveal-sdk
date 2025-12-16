@@ -8,6 +8,10 @@
  * - Counts clicks within time window (e.g., 3 clicks in 1 second)
  * - Emits FrictionSignal with type "rageclick"
  * 
+ * When emitting FrictionSignal, the `extra` object should include:
+ * - `target_id` (string) - Stable target identifier for the clicked element
+ *   (e.g., element ID, stable selector, or semantic identifier)
+ * 
  * @module detectors/rageClickDetector
  */
 

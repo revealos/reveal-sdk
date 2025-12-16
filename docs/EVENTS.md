@@ -40,14 +40,35 @@ Product events track user actions and feature usage in your application.
 - `form_submitted` - User submitted a form
 - `link_clicked` - User clicked a link
 
+**Semantic IDs:**
+
+We recommend including semantic identifiers in product event payloads to enable better analytics and targeting:
+
+- `action_id` or `feature_id` (string, recommended) - Stable identifier for the action or feature
+- `flow_id` (string, optional) - Identifier for the user flow or journey
+- `step` (string | number, optional) - Step number or identifier within a flow
+- `success` (boolean, required for submits/checkout/completion events) - Whether the action succeeded or failed
+
 **Example:**
 ```typescript
 Reveal.track('product', 'checkout_started', {
+  action_id: 'checkout_started',
+  flow_id: 'purchase',
+  step: 1,
   cartValue: 99.99,
   itemCount: 3,
   currency: 'USD',
   hasDiscount: true,
   page: '/checkout',
+});
+
+// Form submission with success indicator
+Reveal.track('product', 'form_submitted', {
+  action_id: 'signup_form_submit',
+  flow_id: 'onboarding',
+  step: 2,
+  success: true,
+  formId: 'signup',
 });
 ```
 
@@ -164,8 +185,12 @@ Session events track session lifecycle.
 ### ✅ Do
 
 ```typescript
-// Flat structure with primitives
+// Flat structure with primitives and semantic IDs
 Reveal.track('product', 'purchase_completed', {
+  action_id: 'purchase_completed',
+  flow_id: 'checkout',
+  step: 3,
+  success: true,
   orderId: 'order_123',
   totalAmount: 99.99,
   currency: 'USD',
@@ -174,8 +199,10 @@ Reveal.track('product', 'purchase_completed', {
   discountAmount: 10.00,
 });
 
-// Use descriptive property names
+// Use descriptive property names with semantic IDs
 Reveal.track('product', 'button_clicked', {
+  action_id: 'signup_button_click',
+  flow_id: 'onboarding',
   buttonId: 'signup',
   buttonText: 'Sign Up',
   page: '/onboarding',

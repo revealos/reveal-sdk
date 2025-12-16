@@ -294,5 +294,37 @@ describe('DecisionClient', () => {
       expect(result).toBeNull();
       expect(mockLogger.logError).toHaveBeenCalled();
     });
+
+    it('should preserve friction semantic IDs in decision request', async () => {
+      const signal: FrictionSignal = {
+        type: 'stall',
+        pageUrl: 'https://example.com',
+        selector: '#button',
+        timestamp: Date.now(),
+        extra: {
+          target_id: 'btn-123',
+          stall_ms: 20000,
+          from_view: 'checkout',
+          to_view: 'payment',
+        },
+      };
+      const context = {
+        projectId: 'test-project',
+        sessionId: 'test-session',
+      };
+
+      (mockTransport.sendDecisionRequest as any).mockResolvedValue({
+        decision: null,
+      });
+
+      await decisionClient.requestDecision(signal, context);
+
+      const callArgs = (mockTransport.sendDecisionRequest as any).mock.calls[0];
+      const payload = callArgs[1];
+      expect(payload.friction.extra.target_id).toBe('btn-123');
+      expect(payload.friction.extra.stall_ms).toBe(20000);
+      expect(payload.friction.extra.from_view).toBe('checkout');
+      expect(payload.friction.extra.to_view).toBe('payment');
+    });
   });
 });

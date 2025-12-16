@@ -119,7 +119,11 @@ Automatically detected friction patterns:
 - `pageUrl` - Current page URL
 - `selector` - CSS selector of the element (if applicable)
 - `type` - Friction type: `"stall" | "rageclick" | "backtrack"`
-- `extra` - Additional metadata (optional)
+- `extra` - Additional metadata (optional), may include:
+  - `target_id` (string) - Stable target identifier for rageclick events
+  - `from_view` (string) - View identifier before navigation (for backtrack events)
+  - `to_view` (string) - View identifier after navigation (for backtrack events)
+  - `stall_ms` (number) - Stall duration in milliseconds (for stall events)
 
 **Does NOT contain:**
 - User text input

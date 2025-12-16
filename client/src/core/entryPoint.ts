@@ -177,6 +177,10 @@ export async function init(
     }
 
     // STEP 6: DetectorManager – friction detection
+    // Friction signals may include semantic IDs in extra:
+    // - For "stall": stall_ms (number) - stall duration in milliseconds
+    // - For "rageclick": target_id (string) - stable target identifier
+    // - For "backtrack": from_view (string), to_view (string) - view identifiers
     function onFrictionSignal(rawSignal: FrictionSignal) {
       safeTry(async () => {
         if (!eventPipeline || !sessionManager) {

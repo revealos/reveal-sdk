@@ -9,6 +9,10 @@
  * - Detects backward navigation patterns
  * - Emits FrictionSignal with type "backtrack"
  * 
+ * When emitting FrictionSignal, the `extra` object should include:
+ * - `from_view` (string) - View identifier before navigation (e.g., viewKey or stable view ID)
+ * - `to_view` (string) - View identifier after navigation (e.g., viewKey or stable view ID)
+ * 
  * @module detectors/backtrackDetector
  */
 

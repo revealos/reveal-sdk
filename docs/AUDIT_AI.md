@@ -207,6 +207,7 @@ The Reveal SDK tracks three types of data:
    - Rage click detection (rapid repeated clicks)
    - Backtrack detection (navigation backward)
    - Contains: `pageUrl`, `selector`, `timestamp`, optional `extra` metadata
+   - `extra` may include semantic identifiers (non-PII): `target_id` (for rageclick), `from_view`/`to_view` (for backtrack), `stall_ms` (for stall)
    - Does NOT contain: user text, form values, cookies, tokens, DOM content
 
 3. **Session Metadata** - Technical context for events

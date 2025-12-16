@@ -104,6 +104,10 @@ export function createDetectorManager(
   }
 
   // Shared helper to emit FrictionSignal
+  // Detectors should populate semantic IDs in extra:
+  // - For "stall": stall_ms (number) - stall duration in milliseconds
+  // - For "rageclick": target_id (string) - stable target identifier
+  // - For "backtrack": from_view (string), to_view (string) - view identifiers
   function emitFrictionSignal(partial: {
     type: FrictionType;
     pageUrl?: string | null;

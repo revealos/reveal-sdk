@@ -224,6 +224,29 @@ describe('EventPipeline', () => {
         'EventPipeline: destroyed, ignoring event'
       );
     });
+
+    it('should preserve semantic IDs in product event payloads', async () => {
+      const payload = {
+        action_id: 'test_action',
+        feature_id: 'test_feature',
+        flow_id: 'onboarding',
+        step: 2,
+        success: true,
+        customField: 'value',
+      };
+      
+      pipeline.captureEvent('product', 'test_event', payload);
+      await pipeline.flush(true);
+      
+      const sentEvents = (mockTransport.sendBatch as any).mock.calls[0][0] as BaseEvent[];
+      expect(sentEvents.length).toBe(1);
+      expect(sentEvents[0].payload.action_id).toBe('test_action');
+      expect(sentEvents[0].payload.feature_id).toBe('test_feature');
+      expect(sentEvents[0].payload.flow_id).toBe('onboarding');
+      expect(sentEvents[0].payload.step).toBe(2);
+      expect(sentEvents[0].payload.success).toBe(true);
+      expect(sentEvents[0].payload.customField).toBe('value');
+    });
   });
 
   describe('flush', () => {

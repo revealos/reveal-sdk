@@ -124,8 +124,10 @@ Track product events:
 ```tsx
 import { Reveal } from '@reveal/client';
 
-// Track user actions
+// Track user actions with semantic IDs (recommended)
 Reveal.track('product', 'button_clicked', {
+  action_id: 'signup_button_click',
+  flow_id: 'onboarding',
   buttonId: 'signup',
   page: '/onboarding',
 });

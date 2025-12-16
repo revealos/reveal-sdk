@@ -200,6 +200,8 @@ import { Reveal } from '@reveal/client';
 // In navigation click handler
 const handleNavClick = (route: string, label: string) => {
   Reveal.track('product', 'navigation_clicked', {
+    action_id: `nav_${route.replace('/', '_')}`,
+    flow_id: 'main_nav',
     route,
     label,
   });
@@ -215,13 +217,28 @@ Add to form submit handlers:
 import { Reveal } from '@reveal/client';
 
 const handleSubmit = async (formData: FormData) => {
-  // Track form submission start
-  Reveal.track('product', 'form_submitted', {
-    formId: 'signup', // or form name
-    // Add other relevant fields (avoid PII)
-  });
-  
-  // ... existing form submission logic
+  try {
+    // ... existing form submission logic
+    
+    // Track successful form submission
+    Reveal.track('product', 'form_submitted', {
+      action_id: 'signup_form_submit',
+      flow_id: 'onboarding',
+      step: 2,
+      success: true,
+      formId: 'signup', // or form name
+      // Add other relevant fields (avoid PII)
+    });
+  } catch (error) {
+    // Track failed form submission
+    Reveal.track('product', 'form_submitted', {
+      action_id: 'signup_form_submit',
+      flow_id: 'onboarding',
+      step: 2,
+      success: false,
+      formId: 'signup',
+    });
+  }
 };
 ```
 
@@ -234,6 +251,8 @@ import { Reveal } from '@reveal/client';
 
 const handleButtonClick = (buttonId: string, action: string) => {
   Reveal.track('product', 'button_clicked', {
+    action_id: `${buttonId}_click`,
+    flow_id: 'onboarding', // optional, adjust based on context
     buttonId,
     action,
     page: window.location.pathname, // or use router if available
@@ -250,13 +269,27 @@ Add to create/update handlers (projects, tasks, items, etc.):
 ```tsx
 import { Reveal } from '@reveal/client';
 
-const handleCreate = (entityType: string, entityId: string, metadata?: Record<string, any>) => {
-  Reveal.track('product', `${entityType}_created`, {
-    [`${entityType}Id`]: entityId,
-    ...metadata, // Add relevant metadata (avoid PII)
-  });
-  
-  // ... existing creation logic
+const handleCreate = async (entityType: string, entityId: string, metadata?: Record<string, any>) => {
+  try {
+    // ... existing creation logic
+    
+    // Track successful entity creation
+    Reveal.track('product', `${entityType}_created`, {
+      action_id: `${entityType}_created`,
+      flow_id: 'entity_management', // optional, adjust based on context
+      success: true,
+      [`${entityType}Id`]: entityId,
+      ...metadata, // Add relevant metadata (avoid PII)
+    });
+  } catch (error) {
+    // Track failed entity creation
+    Reveal.track('product', `${entityType}_created`, {
+      action_id: `${entityType}_created`,
+      flow_id: 'entity_management',
+      success: false,
+      [`${entityType}Id`]: entityId,
+    });
+  }
 };
 ```
 
@@ -267,8 +300,11 @@ Add to state transition handlers (status changes, moves, etc.):
 ```tsx
 import { Reveal } from '@reveal/client';
 
-const handleStateChange = (entityId: string, fromState: string, toState: string) => {
+const handleStateChange = (entityId: string, fromState: string, toState: string, step?: number) => {
   Reveal.track('product', 'state_changed', {
+    action_id: 'state_changed',
+    flow_id: 'workflow', // optional, adjust based on context
+    step, // optional step number
     entityId,
     fromState,
     toState,

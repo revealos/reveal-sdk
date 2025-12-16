@@ -272,6 +272,7 @@ export function createStallDetector(
             extra: {
               context,
               idleMs,
+              stall_ms: idleMs, // Standard semantic ID for stall duration
               timeoutMs: state.timeoutMs,
             },
           };
@@ -284,6 +285,7 @@ export function createStallDetector(
             extra: {
               context,
               idleMs,
+              stall_ms: idleMs, // Standard semantic ID for stall duration
               timeoutMs: state.timeoutMs,
             },
           });

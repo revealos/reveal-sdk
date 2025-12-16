@@ -61,8 +61,11 @@ Reveal.track(
 **Examples:**
 
 ```typescript
-// Product event with payload
+// Product event with payload and semantic IDs
 Reveal.track('product', 'checkout_started', {
+  action_id: 'checkout_started',
+  flow_id: 'purchase',
+  step: 1,
   cartValue: 99.99,
   itemCount: 3,
   currency: 'USD',
@@ -279,17 +282,46 @@ type EventPayload = Record<string, any>;
 - Must be JSON-serializable
 - Recommended max size: 10KB
 
+**Semantic IDs (Recommended for Product Events):**
+
+For product events, we recommend including semantic identifiers to enable better analytics and targeting:
+
+- `action_id` or `feature_id` (string, required) - Stable identifier for the action or feature (e.g., `"create_project_click"`, `"signup_button_click"`)
+- `flow_id` (string, optional) - Identifier for the user flow or journey (e.g., `"onboarding"`, `"checkout"`, `"purchase"`)
+- `step` (string | number, optional) - Step number or identifier within a flow (e.g., `1`, `"step_2"`, `"payment"`)
+- `success` (boolean, required for submits/checkout/completion events) - Whether the action succeeded or failed
+
 **Valid Examples:**
 
 ```typescript
-// Product event payload
+// Product event payload with semantic IDs
 Reveal.track('product', 'checkout_started', {
+  action_id: 'checkout_started',
+  flow_id: 'purchase',
+  step: 1,
   cartValue: 99.99,
   itemCount: 3,
   currency: 'USD',
   hasDiscount: true,
   userId: 'user_123',
   timestamp: null, // null values are allowed
+});
+
+// Form submission with success indicator
+Reveal.track('product', 'form_submitted', {
+  action_id: 'signup_form_submit',
+  flow_id: 'onboarding',
+  step: 2,
+  success: true,
+  formId: 'signup',
+});
+
+// Product event without semantic IDs (still valid)
+Reveal.track('product', 'checkout_started', {
+  cartValue: 99.99,
+  itemCount: 3,
+  currency: 'USD',
+  hasDiscount: true,
 });
 
 // Friction event payload
