@@ -370,15 +370,15 @@ export async function init(
         loggerRef.logError("Transport not available, DecisionClient cannot be created");
         return;
       }
-      decisionClient = createDecisionClient({
+    decisionClient = createDecisionClient({
         endpoint: resolvedDecisionEndpoint, // Use resolved endpoint (full URL)
         timeoutMs: finalConfig.decision.timeoutMs,
         projectId: finalConfig.projectId,
         environment: finalConfig.environment,
-        clientKey: clientKey,
-        logger: loggerRef,
+      clientKey: clientKey,
+      logger: loggerRef,
         transport: transport,
-      });
+    });
       loggerRef.logDebug("DecisionClient initialized");
     }, loggerRef, "DecisionClient creation");
 
