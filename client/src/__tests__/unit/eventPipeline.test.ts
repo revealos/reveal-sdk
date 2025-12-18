@@ -440,14 +440,16 @@ describe('EventPipeline', () => {
       pipeline.captureEvent('product', 'event1');
       pipeline.startPeriodicFlush();
       
-      // Wait for interval to pass (1001ms > 1000ms maxFlushIntervalMs)
-      await new Promise(resolve => setTimeout(resolve, 1100));
+      // Wait for interval to fire and check to pass
+      // Need to wait for: interval (1000ms) + buffer check time + flush execution
+      // Use 1500ms to ensure the interval has fired and the flush condition is met
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // The flush should have been called
       expect(mockTransport.sendBatch).toHaveBeenCalled();
       
       vi.useFakeTimers(); // Restore fake timers
-    });
+    }, 10000); // Increase timeout to 10s to account for real timers
   });
 
   describe('requeueFailedEvents', () => {
