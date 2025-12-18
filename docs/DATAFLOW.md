@@ -366,6 +366,7 @@ sequenceDiagram
 6. **Friction event immediate flush**: Friction events trigger immediate flush (bypasses batch threshold) to preserve causality and ensure friction events are stored before nudge events
 7. **Event ordering**: During batch flush, events are sorted so friction events always precede nudge events (defensive measure)
 8. **Decision request**: Immediate path (bypasses batching) for friction signals to enable real-time nudge delivery
+9. **Eligibility checks**: Backend may query recent `nudge_shown` events per session to enforce cooldowns and per-session caps before returning a nudge decision
 
 **Data formats:**
 - **ClientConfig**: `{projectId, environment, sdk: {samplingRate}, decision: {endpoint, timeoutMs}, templates, ttlSeconds}`

@@ -60,7 +60,8 @@ Here's how the SDK works at runtime:
            │   └─> Immediately flushes friction event to preserve causality
            │       └─> Events sorted during flush: friction events always precede nudge events
            └─> DecisionClient.requestDecision(signal)
-               └─> Backend returns WireNudgeDecision (or null)
+               └─> Backend checks eligibility (cooldowns, caps) using recent nudge_shown events
+               └─> Backend returns WireNudgeDecision (or null if not eligible)
                    └─> EntryPoint.notifyNudgeSubscribers(decision)
                        └─> Host app receives decision via:
                            ├─> Reveal.onNudgeDecision(callback) [framework-agnostic]
