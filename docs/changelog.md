@@ -8,29 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Decision Building (buildDecision)**: Backend now builds `WireNudgeDecision` from matched templates with complete field mapping. Includes unique `nudgeId` generation, content extraction (title, body, ctaText), template type mapping, slotId from template position (with fallback), frictionType inclusion, and analytics metadata in `extra` field (`_treatment`, `_templateId`, `_decisionId`). Handles all edge cases gracefully (missing content, null position/quadrant, all template types).
 - **Nudge Active State Management**: SDK now tracks when a nudge is active and prevents multiple nudges from appearing simultaneously. Decision requests are blocked while a nudge is visible, and a 2-second cooldown period after dismissal prevents immediate re-triggering. Friction events continue to be tracked for analytics even when decision requests are blocked.
-- **Backend State Monitoring**: Decision requests now include `isNudgeActive` flag for backend monitoring and edge case detection. Backend logs this state in `DecisionController` and `NudgeDecisionService` for observability.
-- **Backend Eligibility Checks**: Backend now enforces server-side eligibility rules based on recent `nudge_shown` events per session. Includes cooldown (3 minutes between nudges) and per-session daily cap (5 nudges per 24 hours). Eligibility checks query the `events` table directly and work independently of SessionService.
-- **Event Transformation**: SDK now automatically transforms `BaseEvent` format to backend `EventModelContract.Event` format before sending to `/ingest` endpoint. This ensures events are properly formatted for backend validation and storage.
+- **Event Transformation**: SDK now automatically transforms internal event format to standardized wire format before sending to `/ingest` endpoint. This ensures events are properly formatted for validation and storage.
 - **Anonymous ID Management**: Added persistent anonymous user identification via `anonymousId` utility. Anonymous ID is stored in `localStorage` and persists across browser sessions for user tracking.
-- **EventTransformer Module**: New module (`packages/client/src/modules/eventTransformer.ts`) that converts SDK internal event format to backend format, including field name mapping, timestamp conversion, and page context extraction.
-- **Backend Event Format**: Events now include required backend fields: `event_id` (UUID), `event_kind`, `event_type`, `anonymous_id`, `sdk_version`, and proper ISO 8601 timestamps.
+- **EventTransformer Module**: New module (`packages/client/src/modules/eventTransformer.ts`) that converts SDK internal event format to wire format, including field name mapping, timestamp conversion, and page context extraction.
+- **Event Format Standardization**: Events now include required wire format fields: `event_id` (UUID), `event_kind`, `event_type`, `anonymous_id`, `sdk_version`, and proper ISO 8601 timestamps.
 
 ### Changed
-- **Transport Module**: Now accepts optional `transformEvent` function to transform events before sending. If provided, events are transformed to backend format. If not provided, events are sent as-is (backward compatibility).
-- **Event Format**: Events sent to `/ingest` now use backend format (`event_kind`, `event_type`, ISO timestamps) instead of SDK internal format (`kind`, `name`, numeric timestamps). This is an internal change - SDK API (`Reveal.track()`) remains unchanged.
+- **Transport Module**: Now accepts optional `transformEvent` function to transform events before sending. If provided, events are transformed to wire format. If not provided, events are sent as-is (backward compatibility).
+- **Event Format**: Events sent to `/ingest` now use standardized wire format (`event_kind`, `event_type`, ISO timestamps) instead of SDK internal format (`kind`, `name`, numeric timestamps). This is an internal change - SDK API (`Reveal.track()`) remains unchanged.
 
 ### Fixed
 - **Multiple Nudges Issue**: Fixed issue where multiple nudges could appear in sequence without dismissal events, caused by meaningful activity resetting the stall detector while a nudge was visible. SDK now blocks decision requests when a nudge is active.
-- **Event Ordering Race Condition**: Fixed rare race condition where `nudge_shown` events could appear before `friction` events in the database when both events were captured in the same millisecond. Friction events now trigger immediate flush to preserve causality (friction → decision → nudge), and events are sorted during batch flush to ensure friction events always precede nudge events.
-- Events from harness app are now properly ingested by backend and stored in Supabase `events` table.
+- **Event Ordering Race Condition**: Fixed rare race condition where `nudge_shown` events could appear before `friction` events when both events were captured in the same millisecond. Friction events now trigger immediate flush to preserve causality (friction → decision → nudge), and events are sorted during batch flush to ensure friction events always precede nudge events.
 - Friction events now include required fields (`selector`, `page_url`, `friction_type`) extracted from friction signal payload. Added fallback to use `context` field or `"__global__"` when selector is null for global friction events.
 
 ## [Unreleased]
 
 ### Added
-- **ConfigClient Implementation**: SDK now fetches configuration from backend `/config` endpoint
+- **ConfigClient Implementation**: SDK now fetches configuration from `/config` endpoint
   - Fetches client-safe configuration during SDK initialization
   - Caches config with TTL (from response `ttlSeconds` or default 60s)
   - Falls back to minimalConfig if fetch fails (maintains backward compatibility)
@@ -38,11 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Includes `X-Reveal-Client-Key` header and `environment` query param
   - Validates endpoint URL for HTTPS (with localhost exception)
   - Comprehensive error handling: network errors, HTTP errors, invalid responses all handled gracefully
-  - SDK continues to work even if backend is unavailable (uses fallback config)
+  - SDK continues to work even if config endpoint is unavailable (uses fallback config)
   - Implementation: `modules/configClient.ts` with full caching and validation
   - Comprehensive test coverage: 29 unit tests for ConfigClient, integration tests in index.test.ts
 - **HTTPS URL Validation at Initialization**: Security hard requirement enforcement
-  - All backend URLs (`ingestEndpoint`, `decisionEndpoint`, `apiBase`) are validated for HTTPS at SDK initialization
+  - All API URLs (`ingestEndpoint`, `decisionEndpoint`, `apiBase`) are validated for HTTPS at SDK initialization
   - SDK disables itself (`isDisabled = true`) if any non-HTTPS URL is detected
   - Clear error messages logged when validation fails
   - Localhost exception: `http://localhost` and `http://127.0.0.1` allowed for local development
@@ -57,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Environment-Aware Decision Request Timeout**: More realistic timeout defaults for production
-  - Production default: 400ms (was 200ms) - accounts for network latency and backend processing time
+  - Production default: 400ms (was 200ms) - accounts for network latency and processing time
   - Development default: 2000ms (unchanged) - allows for CORS preflight and logging overhead
   - Timeout is automatically set based on `environment` option in `Reveal.init()`
   - Still configurable via `decisionTimeoutMs` option if needed
@@ -116,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Quadrant-Based Positioning Strategy** (Implemented)
   - Overlay positioning uses quadrant-based strategy instead of target element attachment
   - Supports 6 viewport-relative quadrants: topLeft, topCenter, topRight, bottomLeft, bottomCenter, bottomRight
-  - Backend can specify quadrant preference via `WireNudgeDecision.quadrant` field
+  - Quadrant preference can be specified via `WireNudgeDecision.quadrant` field
   - Defaults to `"topCenter"` if not specified
   - Replaces target element positioning approach for better flexibility and predictability
   - Tooltip positioning automatically centers within the selected quadrant
@@ -166,14 +162,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **EventPipeline**: Complete event buffering and enrichment module
   - Buffers events in memory with configurable batch size and flush intervals
   - Enriches events with session context, location, viewport, and user agent metadata
-  - Transforms nudge payloads from camelCase to snake_case for backend compatibility
+  - Transforms nudge payloads from camelCase to snake_case for wire format compatibility
   - Automatic batch flushing based on size threshold (20 events) or time interval (5 seconds)
   - Retry logic with exponential backoff for failed sends
   - Buffer overflow protection with critical event prioritization (friction, session events preserved)
   - Final flush on destroy using beacon mode for page unload scenarios
   - Comprehensive unit test coverage (40 tests)
 - **Transport**: HTTP transport layer for event batches
-  - Sends event batches to backend `/ingest` endpoint via `fetch` API
+  - Sends event batches to `/ingest` endpoint via `fetch` API
   - Supports `fetch` mode (with retries) and `sendBeacon` mode (for page unload)
   - Classifies network and HTTP errors (retryable vs. non-retryable)
   - Implements exponential backoff for retryable errors
@@ -214,7 +210,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript configuration now includes DOM types for browser API support
 - SDK initialization is now async-safe
 - Fixed TypeScript error in `safe.ts` return type to support `Promise<T | undefined>`
-- Engine logging improved with pino-pretty for readable development logs
 
 ### Planned
 - Quadrant-based overlay positioning implementation
@@ -231,7 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Friction detection framework (stall, rage click, backtrack detectors)
 - Event pipeline architecture
 - Session management
-- Transport layer for backend communication
+- Transport layer for API communication
 - Comprehensive documentation (API, Architecture, Security, Compliance)
 
 ### Security
