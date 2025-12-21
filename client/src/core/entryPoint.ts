@@ -26,6 +26,7 @@ import { setAuditLogger } from "../security/auditLogger";
 import { setErrorLogger } from "../errors/errorHandler";
 import { validateAllBackendUrls, validateHttpsUrl } from "../security/inputValidation";
 import { getOrCreateAnonymousId } from "../utils/anonymousId";
+import { getTabState, incrementSeq } from "../utils/tabState";
 import { transformBaseEventToBackendFormat, type PageContext } from "../modules/eventTransformer";
 import type { BaseEvent } from "../types/events";
 import type { FrictionSignal } from "../types/friction";
@@ -319,7 +320,8 @@ export async function init(
         // Emit friction event to pipeline
         // CRITICAL: flushImmediately=true ensures friction events are sent before nudge events
         // This preserves causality: friction → decision → nudge
-        eventPipeline.captureEvent(
+        // Capture event_id for linking decision to friction event
+        const frictionEventId = eventPipeline.captureEvent(
           "friction",
           `friction_${frictionSignal.type}`,
           {
@@ -357,6 +359,7 @@ export async function init(
             sessionId: currentSession.id,
             anonymousId: anonymousId, // Persistent user identifier for treatment assignment
             isNudgeActive, // Send state to backend for monitoring
+            frictionEventId: frictionEventId ?? undefined, // Link decision to friction event (convert null to undefined)
           });
 
           if (decision) {

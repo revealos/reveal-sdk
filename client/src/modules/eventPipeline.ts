@@ -23,6 +23,8 @@ import type { SessionManager } from "./sessionManager";
 import type { Transport } from "./transport";
 import type { Logger } from "../utils/logger";
 import { scrubPII, scrubUrlPII } from "../security/dataSanitization";
+import { getTabState, incrementSeq } from "../utils/tabState";
+import { generateAnonymousId } from "../utils/anonymousId";
 
 /**
  * EventPipeline configuration
@@ -49,7 +51,7 @@ export interface EventPipelineOptions {
  * EventPipeline interface
  */
 export interface EventPipeline {
-  captureEvent(kind: EventKind, name: string, payload?: EventPayload, flushImmediately?: boolean): void;
+  captureEvent(kind: EventKind, name: string, payload?: EventPayload, flushImmediately?: boolean): string | null; // Returns event_id if available
   flush(force?: boolean, mode?: "normal" | "beacon"): Promise<void>;
   startPeriodicFlush(): void;
   destroy(): void;
@@ -140,6 +142,22 @@ export function createEventPipeline(
     // Get current location (path, route, screen)
     const location = getCurrentLocation();
 
+    // Capture page context at event creation time to prevent race conditions
+    // during rapid navigation (Issue A fix)
+    const pageUrlAtCreation = typeof window !== "undefined" ? window.location.href : null;
+    const pageTitleAtCreation = typeof document !== "undefined" ? document.title : null;
+    const referrerAtCreation = typeof document !== "undefined" ? document.referrer : null;
+
+    // Capture client timestamp for deterministic ordering
+    const clientTimestamp = now();
+
+    // Generate event_id at creation time (for linking decisions to friction events)
+    const event_id = generateAnonymousId();
+
+    // Get tab state and increment seq counter
+    const tabState = getTabState();
+    const seq = incrementSeq();
+
     // Transform payload: map camelCase to snake_case for nudge events
     const transformedPayload =
       kind === "nudge" ? transformNudgePayload(payload) : payload;
@@ -209,6 +227,7 @@ export function createEventPipeline(
     // Build enriched event
     const enrichedEvent: BaseEvent = {
       // Event identification
+      event_id, // Generated at creation time for linking
       kind,
       name,
       event_source,
@@ -218,7 +237,7 @@ export function createEventPipeline(
       is_treatment: session ? session.isTreatment : null,
 
       // Timing
-      timestamp: now(),
+      timestamp: clientTimestamp,
 
       // Location context
       path: scrubbedPath,
@@ -227,6 +246,16 @@ export function createEventPipeline(
       viewKey,
       ui_layer,
       modal_key,
+
+      // Page context captured at event creation time (Issue A fix)
+      page_url: pageUrlAtCreation,
+      page_title: pageTitleAtCreation,
+      referrer: referrerAtCreation,
+
+      // Event ordering fields (Issue B fix)
+      client_ts_ms: clientTimestamp,
+      seq, // Monotonic sequence number per tab
+      tab_id: tabState.tab_id, // Unique identifier per browser tab
 
       // User agent (captured once)
       user_agent:
@@ -405,13 +434,13 @@ export function createEventPipeline(
     name: string,
     payload: EventPayload = {},
     flushImmediately: boolean = false
-  ): void {
+  ): string | null {
     if (isDestroyed) {
       logger?.logDebug("EventPipeline: destroyed, ignoring event");
-      return;
+      return null;
     }
 
-    safeTry(
+    return safeTry(
       () => {
         logger?.logDebug("EventPipeline: capturing event", { kind, name, flushImmediately });
 
@@ -420,6 +449,9 @@ export function createEventPipeline(
 
         // Add to buffer
         eventBuffer.push(enrichedEvent);
+
+        // Return event_id for linking (e.g., friction events to decision requests)
+        return enrichedEvent.event_id || null;
 
         // Check if buffer size threshold reached
         logger?.logDebug("EventPipeline: buffer check", {
@@ -449,10 +481,13 @@ export function createEventPipeline(
             logger?.logError("EventPipeline: auto-flush failed", error);
           });
         }
+
+        // Return event_id for linking
+        return enrichedEvent.event_id || null;
       },
       logger,
       "captureEvent"
-    );
+    ) || null;
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -523,12 +558,15 @@ export function createEventPipeline(
     // CRITICAL: Sort events to ensure friction events always come before nudge events
     // This preserves causality: friction → decision → nudge
     // Events are sorted by kind priority: friction first, then others
+    // Within same kind, order by client timestamp for deterministic ordering (Issue B fix)
     eventsToSend.sort((a, b) => {
       // Friction events always come first
       if (a.kind === "friction" && b.kind !== "friction") return -1;
       if (a.kind !== "friction" && b.kind === "friction") return 1;
-      // Within same kind, preserve original order (timestamp)
-      return 0;
+      // Within same kind, order by client timestamp (deterministic ordering)
+      if (a.client_ts_ms && b.client_ts_ms) return a.client_ts_ms - b.client_ts_ms;
+      // Fallback to timestamp if client_ts_ms missing (backward compatibility)
+      return a.timestamp - b.timestamp;
     });
 
     // Update last flush timestamp

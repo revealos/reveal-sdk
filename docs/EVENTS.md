@@ -265,6 +265,14 @@ Events are automatically batched and sent to the backend:
 - **Retry logic**: Failed batches are retried with exponential backoff
 - **Page unload**: Uses `sendBeacon` API for reliable delivery on page navigation
 
+## Event Ordering
+
+Events are guaranteed to appear in correct chronological order in the database:
+
+- **Client timestamps**: Events include `client_ts_ms` (client timestamp in milliseconds) captured at event creation time for accurate ordering
+- **Database ordering**: Events are ordered by `client_ts_ms` first (actual event time), then `timestamp` as fallback
+- **Rapid navigation**: Page context (`page_url`, `page_title`, `referrer`) is captured at event creation time to prevent race conditions during rapid page navigation
+
 ---
 
 ## Event Validation

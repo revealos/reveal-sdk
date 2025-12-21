@@ -302,6 +302,173 @@ describe("eventTransformer", () => {
         expect(result.friction_type).toBe(type);
       });
     });
+
+    it("should extract path from pageUrl if not provided in payload", () => {
+      const baseEvent: BaseEvent = {
+        kind: "product",
+        name: "page_viewed",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: null,
+        route: null,
+        screen: null,
+        viewKey: "/page",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: {},
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, {
+        ...baseOptions,
+        getPageContext: () => ({
+          url: "https://example.com/checkout",
+          title: "Checkout",
+          referrer: "https://example.com/pricing",
+        }),
+      });
+
+      expect(result.path).toBe("/checkout");
+      expect(result.referrer_path).toBe("/pricing");
+    });
+
+    it("should extract activationContext from payload if provided", () => {
+      const baseEvent: BaseEvent = {
+        kind: "product",
+        name: "custom_event",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: null,
+        route: null,
+        screen: null,
+        viewKey: "/page",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: { activationContext: "checkout" },
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, baseOptions);
+
+      expect(result.activation_context).toBe("checkout");
+    });
+
+    it("should set activation_context to null if not provided", () => {
+      const baseEvent: BaseEvent = {
+        kind: "product",
+        name: "page_viewed",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: null,
+        route: null,
+        screen: null,
+        viewKey: "/page",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: {},
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, baseOptions);
+
+      expect(result.activation_context).toBeNull();
+    });
+
+    it('should use captured page context from BaseEvent instead of getPageContext (Issue A fix)', () => {
+      const baseEvent: BaseEvent = {
+        kind: "product",
+        name: "navigation_clicked",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: "/settings",
+        route: null,
+        screen: null,
+        viewKey: "/settings",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: {},
+        // Captured at event creation time
+        page_url: "https://example.com/settings",
+        page_title: "Settings Page",
+        referrer: "https://example.com/home",
+        client_ts_ms: 1234567890000,
+      };
+
+      // getPageContext returns different values (simulating page navigation)
+      const differentPageContext = {
+        url: "https://example.com/error-lab",
+        title: "Error Lab Page",
+        referrer: "https://example.com/settings",
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, {
+        ...baseOptions,
+        getPageContext: () => differentPageContext,
+      });
+
+      // Should use captured values, not getPageContext values
+      expect(result.page_url).toBe("https://example.com/settings");
+      expect(result.page_title).toBe("Settings Page");
+      expect(result.referrer).toBe("https://example.com/home");
+      expect(result.client_ts_ms).toBe(1234567890000);
+    });
+
+    it('should include client_ts_ms in backend format (Issue B fix)', () => {
+      const baseEvent: BaseEvent = {
+        kind: "product",
+        name: "test_event",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: "/page",
+        route: null,
+        screen: null,
+        viewKey: "/page",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: {},
+        client_ts_ms: 1234567890000,
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, baseOptions);
+
+      expect(result.client_ts_ms).toBe(1234567890000);
+    });
+
+    it('should handle missing client_ts_ms (backward compatibility)', () => {
+      const baseEvent: BaseEvent = {
+        kind: "product",
+        name: "test_event",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: "/page",
+        route: null,
+        screen: null,
+        viewKey: "/page",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: {},
+        // No client_ts_ms
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, baseOptions);
+
+      expect(result.client_ts_ms).toBeNull();
+    });
   });
 });
 

@@ -56,6 +56,7 @@ export interface DecideRequestPayload {
     extra?: Record<string, any>;
   };
   isNudgeActive?: boolean; // Client state: indicates if a nudge is currently active (for backend monitoring)
+  frictionEventId?: string; // Link decision to friction event
 }
 
 /**

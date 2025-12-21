@@ -51,6 +51,9 @@ export interface BackendEventFormat {
   path?: string | null; // Optional: pathname extracted from pageUrl
   referrer_path?: string | null; // Optional: pathname from referrer URL
   activation_context?: string | null; // Optional: activation context label
+  client_ts_ms?: number | null; // Client timestamp in milliseconds
+  seq?: number | null; // Monotonic sequence number per tab
+  tab_id?: string | null; // Unique identifier per browser tab
 }
 
 /**
@@ -181,7 +184,12 @@ export function transformBaseEventToBackendFormat(
   } else {
     // For non-friction events, extract selector from payload if present
     selector = extractSelectorFromPayload(baseEvent.payload);
-    pageUrl = pageContext.url;
+    
+    // Use captured page context from BaseEvent if available (Issue A fix)
+    // This prevents race conditions when page navigation happens between event creation and transformation
+    pageUrl = baseEvent.page_url ?? pageContext.url;
+    const pageTitle = baseEvent.page_title ?? pageContext.title;
+    const referrer = baseEvent.referrer ?? pageContext.referrer;
     
     // Extract path from payload or pageUrl
     path = baseEvent.payload?.path || (pageUrl ? extractPathFromUrl(pageUrl) : null);
@@ -189,15 +197,26 @@ export function transformBaseEventToBackendFormat(
     // Extract referrerPath from payload or document referrer
     referrerPath = baseEvent.payload?.referrerPath !== undefined
       ? baseEvent.payload?.referrerPath
-      : extractReferrerPath(pageContext.referrer);
+      : extractReferrerPath(referrer);
     
     // Extract activationContext from payload (optional, can be null)
     activationContext = baseEvent.payload?.activationContext || null;
   }
 
+  // Determine page title and referrer to use
+  // For friction events, use pageContext (friction signals may not have these)
+  // For non-friction events, use captured values from BaseEvent
+  const finalPageTitle = baseEvent.kind === "friction" 
+    ? pageContext.title 
+    : (baseEvent.page_title ?? pageContext.title);
+  const finalReferrer = baseEvent.kind === "friction"
+    ? pageContext.referrer
+    : (baseEvent.referrer ?? pageContext.referrer);
+
   // Build backend event format
+  // Use event_id from BaseEvent if available (generated at creation time), otherwise generate new
   const backendEvent: BackendEventFormat = {
-    event_id: generateAnonymousId(),
+    event_id: baseEvent.event_id || generateAnonymousId(),
     session_id: baseEvent.session_id, // Already UUID from sessionManager
     timestamp: new Date(baseEvent.timestamp).toISOString(),
     event_kind: baseEvent.kind,
@@ -207,8 +226,8 @@ export function transformBaseEventToBackendFormat(
     sdk_version: options.sdkVersion,
     properties: baseEvent.payload && Object.keys(baseEvent.payload).length > 0 ? baseEvent.payload : null,
     page_url: pageUrl,
-    page_title: pageContext.title,
-    referrer: pageContext.referrer,
+    page_title: finalPageTitle,
+    referrer: finalReferrer,
     selector: selector,
     element_text: extractElementTextFromPayload(baseEvent.payload),
     friction_type: frictionType,
@@ -218,6 +237,9 @@ export function transformBaseEventToBackendFormat(
     path: path || null, // Pathname extracted from pageUrl
     referrer_path: referrerPath, // Pathname from referrer URL
     activation_context: activationContext, // Optional activation context from app
+    client_ts_ms: baseEvent.client_ts_ms ?? null, // Client timestamp in milliseconds (Issue B fix)
+    seq: baseEvent.seq ?? null, // Monotonic sequence number per tab
+    tab_id: baseEvent.tab_id ?? null, // Unique identifier per browser tab
   };
 
   return backendEvent;

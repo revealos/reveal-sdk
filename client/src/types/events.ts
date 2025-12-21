@@ -41,6 +41,7 @@ export type EventPayload = Record<string, any>;
  * Base event structure (SDK internal)
  */
 export interface BaseEvent {
+  event_id?: string; // UUID generated at event creation time (for linking decisions to friction events)
   kind: EventKind;
   name: string;
   event_source: EventSource;
@@ -84,5 +85,24 @@ export interface BaseEvent {
   viewport_width: number;
   viewport_height: number;
   payload: EventPayload;
+
+  /**
+   * Page context captured at event creation time.
+   * These fields are frozen when the event is created to prevent race conditions
+   * during rapid navigation.
+   */
+  page_url?: string | null;
+  page_title?: string | null;
+  referrer?: string | null;
+
+  /**
+   * Event ordering fields for deterministic ordering in the database.
+   * client_ts_ms: Client timestamp in milliseconds (same as timestamp, but explicit)
+   * seq: Monotonic sequence number per tab (tie-breaker for events with same timestamp)
+   * tab_id: Unique identifier per browser tab (groups events from same tab)
+   */
+  client_ts_ms?: number;
+  seq?: number;
+  tab_id?: string;
 }
 

@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Activation Context Support**: SDK now supports optional `activationContext` field in event payloads to disambiguate nudges on the same page. Apps can provide a context label (e.g., "checkout", "onboarding") when tracking events via `Reveal.track()`. Templates can specify `activation_contexts` array to only match when the resolved context is in the list. Generic templates (without `activation_contexts`) match regardless of context. This enables context-aware nudge routing based on user journey.
+- **Decision Event Linking**: SDK now links friction events to their decision requests for better traceability
+  - Added `frictionEventId` parameter to decision requests sent to `/decide` endpoint
+  - SDK captures `event_id` when creating friction events and includes it in decision requests
+  - Enables backend to trace which friction event triggered each nudge decision
+  - Type: optional field (`frictionEventId?: string`) in `DecideRequestPayload` interface
+- **Activation Context Support**: SDK now supports optional `activationContext` field in event payloads and friction signals. Apps can provide a task/flow label (e.g., "checkout", "onboarding") to help disambiguate nudges on the same page. Templates can specify `activation_contexts` array to only match when the resolved context is in the list. Generic templates (no `activation_contexts`) match regardless of context. This is a routing/filtering mechanism only - it does not affect eligibility scoring.
 - **Nudge Active State Management**: SDK now tracks when a nudge is active and prevents multiple nudges from appearing simultaneously. Decision requests are blocked while a nudge is visible, and a 2-second cooldown period after dismissal prevents immediate re-triggering. Friction events continue to be tracked for analytics even when decision requests are blocked.
 - **Event Transformation**: SDK now automatically transforms internal event format to standardized wire format before sending to `/ingest` endpoint. This ensures events are properly formatted for validation and storage.
 - **Anonymous ID Management**: Added persistent anonymous user identification via `anonymousId` utility. Anonymous ID is stored in `localStorage` and persists across browser sessions for user tracking.

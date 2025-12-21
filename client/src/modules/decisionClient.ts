@@ -43,6 +43,7 @@ export interface DecisionContext {
   sessionId: string;
   anonymousId?: string; // Optional: persistent user identifier for treatment assignment (sticky treatment)
   isNudgeActive?: boolean; // Optional: indicates if a nudge is currently active (for backend monitoring)
+  frictionEventId?: string; // Optional: event_id of the friction event that triggered this decision request
 }
 
 /**
@@ -191,6 +192,9 @@ export function createDecisionClient(
 
       // Client state for backend monitoring (helps detect edge cases)
       isNudgeActive: context.isNudgeActive ?? false,
+
+      // Link decision to friction event (for trigger_event_id in decision events)
+      frictionEventId: context.frictionEventId,
     };
   }
 
