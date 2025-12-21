@@ -48,6 +48,9 @@ export interface BackendEventFormat {
   user_key: string | null;
   environment: string | null;
   batch_id: string | null;
+  path?: string | null; // Optional: pathname extracted from pageUrl
+  referrer_path?: string | null; // Optional: pathname from referrer URL
+  activation_context?: string | null; // Optional: activation context label
 }
 
 /**
@@ -94,6 +97,34 @@ function extractFrictionType(payload: Record<string, any> | undefined | null): "
 }
 
 /**
+ * Extract pathname from URL
+ */
+function extractPathFromUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const urlObj = new URL(url);
+    return urlObj.pathname;
+  } catch {
+    // Fallback: try simple string extraction
+    const match = url.match(/\/\/[^\/]+(\/.*)?$/);
+    return match && match[1] ? match[1] : "/";
+  }
+}
+
+/**
+ * Extract pathname from referrer URL
+ */
+function extractReferrerPath(referrer: string | null): string | null {
+  if (!referrer) return null;
+  try {
+    const urlObj = new URL(referrer);
+    return urlObj.pathname;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Transform BaseEvent to backend format
  * 
  * @param baseEvent - SDK internal event format
@@ -111,12 +142,28 @@ export function transformBaseEventToBackendFormat(
   let pageUrl: string | null = null;
   let frictionType: "stall" | "rageclick" | "backtrack" | null = null;
 
+  // Extract path, referrerPath, and activationContext from payload or page context
+  let path: string | null = null;
+  let referrerPath: string | null = null;
+  let activationContext: string | null = null;
+
   if (baseEvent.kind === "friction") {
     // Friction events must have selector and page_url from payload
     // These come from the friction signal, not from BaseEvent.path
     selector = baseEvent.payload?.selector || null;
     pageUrl = baseEvent.payload?.pageUrl || baseEvent.payload?.page_url || pageContext.url || null;
     frictionType = extractFrictionType(baseEvent.payload);
+    
+    // Extract path from payload or pageUrl
+    path = baseEvent.payload?.path || (pageUrl ? extractPathFromUrl(pageUrl) : null);
+    
+    // Extract referrerPath from payload or document referrer
+    referrerPath = baseEvent.payload?.referrerPath !== undefined 
+      ? baseEvent.payload?.referrerPath 
+      : extractReferrerPath(pageContext.referrer);
+    
+    // Extract activationContext from payload (optional, can be null)
+    activationContext = baseEvent.payload?.activationContext || null;
     
     // FALLBACK: If frictionType is null, try to extract from event name (e.g., "friction_stall" -> "stall")
     if (!frictionType && baseEvent.name && baseEvent.name.startsWith("friction_")) {
@@ -135,6 +182,17 @@ export function transformBaseEventToBackendFormat(
     // For non-friction events, extract selector from payload if present
     selector = extractSelectorFromPayload(baseEvent.payload);
     pageUrl = pageContext.url;
+    
+    // Extract path from payload or pageUrl
+    path = baseEvent.payload?.path || (pageUrl ? extractPathFromUrl(pageUrl) : null);
+    
+    // Extract referrerPath from payload or document referrer
+    referrerPath = baseEvent.payload?.referrerPath !== undefined
+      ? baseEvent.payload?.referrerPath
+      : extractReferrerPath(pageContext.referrer);
+    
+    // Extract activationContext from payload (optional, can be null)
+    activationContext = baseEvent.payload?.activationContext || null;
   }
 
   // Build backend event format
@@ -157,6 +215,9 @@ export function transformBaseEventToBackendFormat(
     user_key: null, // Not available in BaseEvent
     environment: null, // Backend will override from project context
     batch_id: null, // Transport will add this
+    path: path || null, // Pathname extracted from pageUrl
+    referrer_path: referrerPath, // Pathname from referrer URL
+    activation_context: activationContext, // Optional activation context from app
   };
 
   return backendEvent;

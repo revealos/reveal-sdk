@@ -277,11 +277,40 @@ export async function init(
         }
 
         const now = Date.now();
+        
+        // Extract path from pageUrl if not provided
+        const extractPathFromUrl = (url: string): string => {
+          try {
+            const urlObj = new URL(url);
+            return urlObj.pathname;
+          } catch {
+            // Fallback: try simple string extraction
+            const match = url.match(/\/\/[^\/]+(\/.*)?$/);
+            return match && match[1] ? match[1] : "/";
+          }
+        };
+        
+        // Extract referrerPath from document.referrer if available
+        const getReferrerPath = (): string | null => {
+          if (typeof document === "undefined") return null;
+          const referrer = document.referrer;
+          if (!referrer) return null;
+          try {
+            const urlObj = new URL(referrer);
+            return urlObj.pathname;
+          } catch {
+            return null;
+          }
+        };
+        
         const frictionSignal: FrictionSignal = {
           type: rawSignal.type,
           pageUrl: rawSignal.pageUrl,
           selector: rawSignal.selector ?? null,
           timestamp: rawSignal.timestamp || now,
+          path: rawSignal.path || extractPathFromUrl(rawSignal.pageUrl),
+          referrerPath: rawSignal.referrerPath !== undefined ? rawSignal.referrerPath : getReferrerPath(),
+          activationContext: rawSignal.activationContext || null, // Optional, can be null
           extra: rawSignal.extra || {},
         };
 

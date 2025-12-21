@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Activation Context Support**: SDK now supports optional `activationContext` field in event payloads to disambiguate nudges on the same page. Apps can provide a context label (e.g., "checkout", "onboarding") when tracking events via `Reveal.track()`. Templates can specify `activation_contexts` array to only match when the resolved context is in the list. Generic templates (without `activation_contexts`) match regardless of context. This enables context-aware nudge routing based on user journey.
 - **Nudge Active State Management**: SDK now tracks when a nudge is active and prevents multiple nudges from appearing simultaneously. Decision requests are blocked while a nudge is visible, and a 2-second cooldown period after dismissal prevents immediate re-triggering. Friction events continue to be tracked for analytics even when decision requests are blocked.
 - **Event Transformation**: SDK now automatically transforms internal event format to standardized wire format before sending to `/ingest` endpoint. This ensures events are properly formatted for validation and storage.
 - **Anonymous ID Management**: Added persistent anonymous user identification via `anonymousId` utility. Anonymous ID is stored in `localStorage` and persists across browser sessions for user tracking.
