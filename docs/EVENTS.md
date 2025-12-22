@@ -267,11 +267,18 @@ Events are automatically batched and sent to the backend:
 
 ## Event Ordering
 
-Events are guaranteed to appear in correct chronological order in the database:
+Events are guaranteed to appear in correct chronological order in the database using a deterministic 4-column sort:
 
-- **Client timestamps**: Events include `client_ts_ms` (client timestamp in milliseconds) captured at event creation time for accurate ordering
-- **Database ordering**: Events are ordered by `client_ts_ms` first (actual event time), then `timestamp` as fallback
-- **Rapid navigation**: Page context (`page_url`, `page_title`, `referrer`) is captured at event creation time to prevent race conditions during rapid page navigation
+- **Primary: `client_ts_ms`** - Client timestamp in milliseconds, captured at event creation time
+- **Secondary: `tab_id`** - Unique identifier per browser tab (persists in sessionStorage across page navigations)
+- **Tertiary: `seq`** - Monotonic sequence number within the tab (increments per event)
+- **Fallback: `server_timestamp`** - Server receipt time (for edge cases)
+
+This ensures:
+- Events appear in true chronological order regardless of network latency or batching delays
+- Events from different tabs are properly separated
+- Events within the same tab maintain strict sequence order
+- Rapid navigation doesn't cause event misordering
 
 ---
 

@@ -39,6 +39,7 @@ export interface WireNudgeDecision {
   slotId?: string; // Deprecated: kept for backward compatibility
   quadrant?: NudgeQuadrant; // Viewport quadrant for positioning (defaults to "topCenter")
   frictionType?: "stall" | "rageclick" | "backtrack";
+  debugCode?: string; // Debug code for tracing decision (6-8 chars, e.g., "X4368DGE")
   expiresAt?: string; // ISO string
   extra?: Record<string, string | number | boolean | null>;
 }

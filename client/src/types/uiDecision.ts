@@ -85,6 +85,12 @@ export interface UINudgeDecision {
   autoDismissMs?: number | null;
 
   /**
+   * Debug code for tracing decision (6-8 chars, e.g., "X4368DGE").
+   * Optional field for debugging and support.
+   */
+  debugCode?: string;
+
+  /**
    * Arbitrary extra metadata that templates or host may use.
    * Must remain JSON-serialisable.
    */
@@ -130,6 +136,7 @@ export function mapWireToUI(
     quadrant: options?.quadrant ?? wire.quadrant ?? "topCenter",
     dismissible: options?.dismissible ?? true,
     autoDismissMs: options?.autoDismissMs ?? null,
+    debugCode: wire.debugCode,
     extra: wire.extra,
   };
 }

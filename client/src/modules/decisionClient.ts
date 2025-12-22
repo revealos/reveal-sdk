@@ -282,6 +282,7 @@ export function createDecisionClient(
         slotId: decision.slotId,
         quadrant: decision.quadrant,
         frictionType: decision.frictionType,
+        debugCode: decision.debugCode, // Include debug code for tracing
         expiresAt: decision.expiresAt,
         extra: decision.extra,
       };

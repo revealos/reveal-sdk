@@ -33,6 +33,7 @@ import type { NudgeDecision } from "../types/NudgeDecision";
 import { useNudgeVisibility } from "../hooks/useNudgeVisibility";
 import { useTrackNudgeShown } from "../hooks/useTrackNudgeShown";
 import { TooltipNudge } from "./templates/TooltipNudge";
+import { DebugCode } from "./primitives/DebugCode";
 import { Z_INDEX } from "../utils/constants";
 
 export interface OverlayManagerProps {
@@ -330,12 +331,14 @@ export const OverlayManager = memo(function OverlayManager(
               })}
             </>
           )}
-        <TooltipNudge
-          decision={decision}
-          onDismiss={handleDismiss}
-          onActionClick={handleActionClick}
-          onTrack={onTrack}
+          <TooltipNudge
+            decision={decision}
+            onDismiss={handleDismiss}
+            onActionClick={handleActionClick}
+            onTrack={onTrack}
           />
+          {/* Debug code display (if present) */}
+          {decision.debugCode && <DebugCode code={decision.debugCode} position="bottom-right" />}
         </>,
         portalContainer
       );
