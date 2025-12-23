@@ -1,4 +1,5 @@
 packages:
   - "client"
   - "overlay-react"
+  - "overlay-wc"
 
