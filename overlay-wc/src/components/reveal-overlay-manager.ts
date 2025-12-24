@@ -19,6 +19,7 @@ export class RevealOverlayManager extends HTMLElementBase {
   private _decision: NudgeDecision | null = null;
   private _shadowRoot: ShadowRoot;
   private _currentTemplate: HTMLElement | null = null;
+  private _isRendered: boolean = false;
 
   constructor() {
     super();
@@ -35,11 +36,13 @@ export class RevealOverlayManager extends HTMLElementBase {
 
   set decision(value: NudgeDecision | null) {
     this._decision = value;
+    this._isRendered = false; // Reset render flag when decision changes
     this._render();
   }
 
   connectedCallback() {
-    if (this._decision) {
+    // Only render if not already rendered (prevents double-render on initial mount)
+    if (this._decision && !this._isRendered) {
       this._render();
     }
   }
@@ -51,6 +54,11 @@ export class RevealOverlayManager extends HTMLElementBase {
   }
 
   private _render() {
+    // Prevent duplicate renders (fixes double event listener attachment)
+    if (this._isRendered) {
+      return;
+    }
+
     // Clear existing template
     if (this._currentTemplate) {
       this._currentTemplate.remove();
@@ -62,46 +70,17 @@ export class RevealOverlayManager extends HTMLElementBase {
       return;
     }
 
+    this._isRendered = true; // Mark as rendered
+
     // Route to template
     const templateId = this._decision.templateId;
 
     if (templateId === "tooltip") {
       const tooltip = document.createElement("reveal-tooltip-nudge") as RevealTooltipNudge;
+
+      // Events from child will bubble naturally through Shadow DOM (composed: true)
+      // No need to re-dispatch - React listener on parent will receive them automatically
       tooltip.decision = this._decision;
-
-      // Forward events from template to manager
-      tooltip.addEventListener("reveal:dismiss", (e: Event) => {
-        const customEvent = e as CustomEvent;
-        this.dispatchEvent(
-          new CustomEvent("reveal:dismiss", {
-            detail: customEvent.detail,
-            bubbles: true,
-            composed: true,
-          })
-        );
-      });
-
-      tooltip.addEventListener("reveal:action-click", (e: Event) => {
-        const customEvent = e as CustomEvent;
-        this.dispatchEvent(
-          new CustomEvent("reveal:action-click", {
-            detail: customEvent.detail,
-            bubbles: true,
-            composed: true,
-          })
-        );
-      });
-
-      tooltip.addEventListener("reveal:shown", (e: Event) => {
-        const customEvent = e as CustomEvent;
-        this.dispatchEvent(
-          new CustomEvent("reveal:shown", {
-            detail: customEvent.detail,
-            bubbles: true,
-            composed: true,
-          })
-        );
-      });
 
       this._currentTemplate = tooltip;
       this._shadowRoot.appendChild(tooltip);

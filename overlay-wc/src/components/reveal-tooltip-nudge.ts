@@ -44,6 +44,7 @@ export class RevealTooltipNudge extends HTMLElementBase {
   private _resizeObserver: ResizeObserver | null = null;
   private _animation: Animation | null = null;
   private _isShown: boolean = false;
+  private _isRendered: boolean = false;
   private _keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
   constructor() {
@@ -57,12 +58,29 @@ export class RevealTooltipNudge extends HTMLElementBase {
 
   set decision(value: NudgeDecision | null) {
     this._decision = value;
+    this._isRendered = false; // Reset render flag when decision changes
+    this._isShown = false; // Reset shown flag for new decision
     this._render();
   }
 
   connectedCallback() {
-    if (this._decision) {
+    // Only render if not already rendered (prevents double-render on initial mount)
+    if (this._decision && !this._isRendered) {
       this._render();
+    }
+
+    // Dispatch shown event after component is connected to DOM
+    // This ensures React listeners are attached before event fires
+    if (this._decision && !this._isShown) {
+      this._isShown = true;
+      console.log("[RevealTooltipNudge] Dispatching reveal:shown event (from connectedCallback)", { nudgeId: this._decision.nudgeId });
+      this.dispatchEvent(
+        new CustomEvent("reveal:shown", {
+          detail: { id: this._decision.nudgeId },
+          bubbles: true,
+          composed: true,
+        })
+      );
     }
   }
 
@@ -71,10 +89,17 @@ export class RevealTooltipNudge extends HTMLElementBase {
   }
 
   private _render() {
+    // Prevent duplicate renders (fixes double event listener attachment)
+    if (this._isRendered) {
+      return;
+    }
+
     if (!this._decision) {
       this._shadowRoot.innerHTML = "";
       return;
     }
+
+    this._isRendered = true; // Mark as rendered
 
     const quadrant = this._decision.quadrant || "topCenter";
     const arrowPlacement = getArrowPlacement(quadrant);
@@ -247,17 +272,8 @@ export class RevealTooltipNudge extends HTMLElementBase {
     // Attach event listeners
     this._attachEventListeners();
 
-    // Dispatch shown event (once only)
-    if (!this._isShown) {
-      this._isShown = true;
-      this.dispatchEvent(
-        new CustomEvent("reveal:shown", {
-          detail: { id: this._decision.nudgeId },
-          bubbles: true,
-          composed: true,
-        })
-      );
-    }
+    // NOTE: reveal:shown event moved to connectedCallback() to ensure
+    // React listeners are attached before event is dispatched
   }
 
   private _escape(text: string): string {
@@ -358,16 +374,19 @@ export class RevealTooltipNudge extends HTMLElementBase {
     // Button click listeners
     const ctaButton = this._shadowRoot.querySelector(".cta-button");
     if (ctaButton) {
+      console.log("[RevealTooltipNudge] Attaching click listener to CTA button");
       ctaButton.addEventListener("click", () => this._handleActionClick());
     }
 
     const dismissButton = this._shadowRoot.querySelector(".dismiss-button");
     if (dismissButton) {
+      console.log("[RevealTooltipNudge] Attaching click listener to dismiss button");
       dismissButton.addEventListener("click", () => this._handleDismiss());
     }
   }
 
   private _handleDismiss() {
+    console.log("[RevealTooltipNudge] _handleDismiss called, dispatching reveal:dismiss");
     this.dispatchEvent(
       new CustomEvent("reveal:dismiss", {
         detail: { id: this._decision?.nudgeId },
@@ -378,6 +397,7 @@ export class RevealTooltipNudge extends HTMLElementBase {
   }
 
   private _handleActionClick() {
+    console.log("[RevealTooltipNudge] _handleActionClick called, dispatching reveal:action-click");
     this.dispatchEvent(
       new CustomEvent("reveal:action-click", {
         detail: { id: this._decision?.nudgeId },

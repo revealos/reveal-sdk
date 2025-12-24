@@ -60,6 +60,18 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   const wcRef = useRef<HTMLElement | null>(null);
 
+  // Use refs to avoid re-attaching listeners when callbacks change
+  const onDismissRef = useRef(onDismiss);
+  const onActionClickRef = useRef(onActionClick);
+  const onTrackRef = useRef(onTrack);
+
+  // Keep callback refs up to date
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+    onActionClickRef.current = onActionClick;
+    onTrackRef.current = onTrack;
+  });
+
   // Create portal container on mount
   useEffect(() => {
     let container = document.getElementById("reveal-overlay-root");
@@ -71,7 +83,7 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({
       container.style.left = "0";
       container.style.width = "100%";
       container.style.height = "100%";
-      container.style.pointerEvents = "auto"; // Allow events to reach tooltip buttons
+      container.style.pointerEvents = "none"; // Let clicks pass through to harness app
       container.style.zIndex = "9999";
       document.body.appendChild(container);
     }
@@ -85,43 +97,87 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({
     };
   }, []);
 
-  // Sync decision property to Web Component
+  // Attach listeners when portal container is ready
   useEffect(() => {
-    if (wcRef.current) {
-      (wcRef.current as any).decision = decision;
+    if (!portalContainer) {
+      console.log("[OverlayManager] Portal container not ready");
+      return;
     }
-  }, [decision]);
 
-  // Attach event listeners to Web Component
+    // Portal renders async, so we need to wait for the WC ref to be assigned
+    // Use requestAnimationFrame to wait until after the next paint
+    const rafId = requestAnimationFrame(() => {
+      const wc = wcRef.current;
+      if (!wc) {
+        console.log("[OverlayManager] ERROR: WC ref still null after RAF");
+        return;
+      }
+
+      console.log("[OverlayManager] Attaching listeners to WC");
+
+      const handleDismiss = (e: Event) => {
+        console.log("[OverlayManager] reveal:dismiss event received", e);
+        const detail = (e as CustomEvent).detail;
+        console.log("[OverlayManager] calling onDismiss with id:", detail.id);
+        onDismissRef.current?.(detail.id);
+      };
+
+      const handleActionClick = (e: Event) => {
+        console.log("[OverlayManager] reveal:action-click event received", e);
+        console.log("[OverlayManager] Event target:", (e as any).target?.tagName);
+        console.log("[OverlayManager] Event currentTarget:", (e as any).currentTarget?.tagName);
+        const detail = (e as CustomEvent).detail;
+        console.log("[OverlayManager] calling onActionClick with id:", detail.id);
+        onActionClickRef.current?.(detail.id);
+      };
+
+      const handleShown = (e: Event) => {
+        console.log("[OverlayManager] reveal:shown event received", e);
+        const detail = (e as CustomEvent).detail;
+        console.log("[OverlayManager] calling onTrack with nudgeId:", detail.id);
+        onTrackRef.current?.("nudge", "nudge_shown", { nudgeId: detail.id });
+      };
+
+      wc.addEventListener("reveal:dismiss", handleDismiss);
+      wc.addEventListener("reveal:action-click", handleActionClick);
+      wc.addEventListener("reveal:shown", handleShown);
+
+      console.log("[OverlayManager] Listeners attached successfully");
+
+      // Store cleanup function
+      (wc as any)._cleanupListeners = () => {
+        console.log("[OverlayManager] Cleaning up listeners");
+        wc.removeEventListener("reveal:dismiss", handleDismiss);
+        wc.removeEventListener("reveal:action-click", handleActionClick);
+        wc.removeEventListener("reveal:shown", handleShown);
+      };
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      const wc = wcRef.current;
+      if (wc && (wc as any)._cleanupListeners) {
+        (wc as any)._cleanupListeners();
+      }
+    };
+  }, [portalContainer]); // Attach once when portal is ready
+
+  // Separate effect: sync decision to Web Component
   useEffect(() => {
+    console.log("[OverlayManager] Syncing decision:", (decision as any)?.id || "null");
     const wc = wcRef.current;
     if (!wc) return;
 
-    const handleDismiss = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      onDismiss?.(detail.id);
-    };
-
-    const handleActionClick = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      onActionClick?.(detail.id);
-    };
-
-    const handleShown = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      onTrack?.("nudge", "nudge_shown", { nudgeId: detail.id });
-    };
-
-    wc.addEventListener("reveal:dismiss", handleDismiss);
-    wc.addEventListener("reveal:action-click", handleActionClick);
-    wc.addEventListener("reveal:shown", handleShown);
-
-    return () => {
-      wc.removeEventListener("reveal:dismiss", handleDismiss);
-      wc.removeEventListener("reveal:action-click", handleActionClick);
-      wc.removeEventListener("reveal:shown", handleShown);
-    };
-  }, [onDismiss, onActionClick, onTrack]);
+    if (decision) {
+      const wcDecision = {
+        ...decision,
+        nudgeId: (decision as any).id || (decision as any).nudgeId,
+      };
+      (wc as any).decision = wcDecision;
+    } else {
+      (wc as any).decision = null;
+    }
+  }, [decision]);
 
   if (!portalContainer) return null;
 

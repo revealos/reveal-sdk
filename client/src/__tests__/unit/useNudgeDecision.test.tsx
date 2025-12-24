@@ -120,9 +120,13 @@ describe('useNudgeDecision', () => {
     // Call dismiss handler
     result.current.handlers.onDismiss('test-nudge-001');
 
-    expect(entryPoint.track).toHaveBeenCalledWith('nudge', 'nudge_dismissed', {
+    expect(entryPoint.track).toHaveBeenCalledWith('nudge', 'nudge_dismissed', expect.objectContaining({
       nudgeId: 'test-nudge-001',
-    });
+      reason: 'user_dismissed',
+      shownAtMs: expect.any(Number),
+      dismissedAtMs: expect.any(Number),
+      activeDurationMs: expect.any(Number),
+    }));
   });
 
   it('should handle onActionClick handler', () => {
@@ -138,9 +142,13 @@ describe('useNudgeDecision', () => {
     // Call action click handler
     result.current.handlers.onActionClick('test-nudge-001');
 
-    expect(entryPoint.track).toHaveBeenCalledWith('nudge', 'nudge_clicked', {
+    expect(entryPoint.track).toHaveBeenCalledWith('nudge', 'nudge_clicked', expect.objectContaining({
       nudgeId: 'test-nudge-001',
-    });
+      reason: 'user_action',
+      shownAtMs: expect.any(Number),
+      dismissedAtMs: expect.any(Number),
+      activeDurationMs: expect.any(Number),
+    }));
   });
 
   it('should handle onTrack handler', () => {
@@ -265,10 +273,13 @@ describe('useNudgeDecision', () => {
     await waitFor(
       () => {
         expect(result.current.decision).toBeNull();
-        expect(entryPoint.track).toHaveBeenCalledWith('nudge', 'nudge_dismissed', {
+        expect(entryPoint.track).toHaveBeenCalledWith('nudge', 'nudge_dismissed', expect.objectContaining({
           nudgeId: 'test-nudge-001',
-          reason: 'navigation',
-        });
+          reason: 'route_change',
+          shownAtMs: expect.any(Number),
+          dismissedAtMs: expect.any(Number),
+          activeDurationMs: expect.any(Number),
+        }));
       },
       { timeout: 200 }
     );

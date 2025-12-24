@@ -55,6 +55,55 @@ export function useNudgeDecision(): UseNudgeDecisionResult {
   const previousPathnameRef = useRef<string | null>(null);
   const lastDecisionIdRef = useRef<string | null>(null);
 
+  // Track active nudge state for idempotency across multiple dismissal paths
+  const activeNudgeRef = useRef<{
+    nudgeId: string;
+    shownAtMs: number;
+    resolved: boolean;
+  } | null>(null);
+
+  // Centralized dismissal helper - ensures idempotency across all dismissal paths
+  const dismissActiveNudge = useCallback((options: {
+    reason: 'navigation' | 'route_change' | 'tab_hidden' | 'page_unload' | 'user_dismissed' | 'user_action';
+    href?: string;
+    useBeacon?: boolean;
+  }) => {
+    const activeNudge = activeNudgeRef.current;
+    if (!activeNudge || activeNudge.resolved) {
+      return; // Already dismissed or no active nudge
+    }
+
+    const { nudgeId, shownAtMs } = activeNudge;
+    const dismissedAtMs = Date.now();
+    const activeDurationMs = dismissedAtMs - shownAtMs;
+
+    const payload: Record<string, any> = {
+      nudgeId,
+      reason: options.reason,
+      shownAtMs,
+      dismissedAtMs,
+      activeDurationMs,
+    };
+
+    if (options.href) {
+      payload.href = options.href;
+    }
+
+    // Track dismissal event (user_action maps to nudge_clicked)
+    if (options.reason === 'user_action') {
+      track('nudge', 'nudge_clicked', payload);
+    } else {
+      track('nudge', 'nudge_dismissed', payload);
+    }
+
+    // Mark as resolved (prevents double-dismissal)
+    activeNudge.resolved = true;
+
+    // Clear UI
+    setDecision(null);
+    lastDecisionIdRef.current = null;
+  }, []);
+
   // Subscribe to nudge decisions
   useEffect(() => {
     const unsubscribe = onNudgeDecision((wireDecision: WireNudgeDecision) => {
@@ -64,6 +113,13 @@ export function useNudgeDecision(): UseNudgeDecisionResult {
       }
 
       lastDecisionIdRef.current = wireDecision.nudgeId;
+
+      // Initialize activeNudgeRef when decision is received
+      activeNudgeRef.current = {
+        nudgeId: wireDecision.nudgeId,
+        shownAtMs: Date.now(),
+        resolved: false,
+      };
 
       // Convert wire format to UI format
       const uiDecision = mapWireToUI(wireDecision);
@@ -100,14 +156,11 @@ export function useNudgeDecision(): UseNudgeDecisionResult {
       const previousPathname = previousPathnameRef.current;
 
       if (previousPathname !== null && currentPathname !== previousPathname) {
-        // Pathname changed - dismiss the nudge
-        const nudgeId = decision.id;
-        track("nudge", "nudge_dismissed", { 
-          nudgeId,
-          reason: "navigation" 
-        });
-        setDecision(null);
-        lastDecisionIdRef.current = null; // Reset on navigation dismiss
+        // Pathname changed - dismiss the nudge with idempotency check
+        const activeNudge = activeNudgeRef.current;
+        if (activeNudge && !activeNudge.resolved) {
+          dismissActiveNudge({ reason: 'route_change' });
+        }
         previousPathnameRef.current = currentPathname;
       } else if (currentPathname !== null) {
         previousPathnameRef.current = currentPathname;
@@ -140,25 +193,116 @@ export function useNudgeDecision(): UseNudgeDecisionResult {
       window.removeEventListener("hashchange", handleHashChange);
       clearInterval(intervalId);
     };
-  }, [decision]);
+  }, [decision, dismissActiveNudge]);
 
-  // Handler for nudge dismissal
+  // Auto-dismiss on MPA link clicks (before page unload)
+  useEffect(() => {
+    if (!decision) return;
+
+    const handleLinkClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('a[href]') as HTMLAnchorElement | null;
+
+      if (!link) return;
+
+      const href = link.getAttribute('href');
+      if (!href) return;
+
+      // Ignore modified clicks (new tab/window)
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      // Ignore target="_blank"
+      if (link.getAttribute('target') === '_blank') return;
+
+      // Ignore same-page anchors (#fragment only)
+      if (href.startsWith('#')) return;
+
+      // Ignore javascript: and mailto: links
+      if (href.startsWith('javascript:') || href.startsWith('mailto:')) return;
+
+      // Dismiss active nudge before navigation
+      const activeNudge = activeNudgeRef.current;
+      if (activeNudge && !activeNudge.resolved) {
+        dismissActiveNudge({
+          reason: 'navigation',
+          href: href,
+        });
+      }
+    };
+
+    // Use CAPTURE phase to intercept before any SPA framework
+    document.addEventListener('click', handleLinkClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleLinkClick, true);
+    };
+  }, [decision, dismissActiveNudge]);
+
+  // Auto-dismiss on tab visibility change (user switches tabs or minimizes browser)
+  useEffect(() => {
+    if (!decision) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        const activeNudge = activeNudgeRef.current;
+        if (activeNudge && !activeNudge.resolved) {
+          dismissActiveNudge({
+            reason: 'tab_hidden',
+          });
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [decision, dismissActiveNudge]);
+
+  // Auto-dismiss on page unload (tab close, browser close, address bar navigation)
+  useEffect(() => {
+    if (!decision) return;
+
+    const handlePageHide = () => {
+      const activeNudge = activeNudgeRef.current;
+      if (activeNudge && !activeNudge.resolved) {
+        dismissActiveNudge({
+          reason: 'page_unload',
+          useBeacon: true, // Use sendBeacon for reliability during page unload
+        });
+      }
+    };
+
+    // Use pagehide (preferred over beforeunload for reliability)
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [decision, dismissActiveNudge]);
+
+  // Handler for nudge dismissal (user clicks dismiss button)
   const handleDismiss = useCallback((nudgeId: string) => {
-    track("nudge", "nudge_dismissed", { nudgeId });
-    setDecision(null);
-    lastDecisionIdRef.current = null; // Reset on dismiss
-  }, []);
+    dismissActiveNudge({ reason: 'user_dismissed' });
+  }, [dismissActiveNudge]);
 
-  // Handler for nudge action click
+  // Handler for nudge action click (user clicks CTA button)
   const handleActionClick = useCallback((nudgeId: string) => {
-    track("nudge", "nudge_clicked", { nudgeId });
-    setDecision(null);
-    lastDecisionIdRef.current = null; // Reset on action click
-  }, []);
+    dismissActiveNudge({ reason: 'user_action' });
+  }, [dismissActiveNudge]);
 
   // Handler for tracking events (passed to OverlayManager)
   const handleTrack = useCallback(
     (kind: string, name: string, payload?: EventPayload) => {
+      // Capture nudge_shown event to initialize activeNudgeRef
+      if (kind === 'nudge' && name === 'nudge_shown' && payload && 'nudgeId' in payload) {
+        activeNudgeRef.current = {
+          nudgeId: payload.nudgeId as string,
+          shownAtMs: Date.now(),
+          resolved: false,
+        };
+      }
       track(kind, name, payload);
     },
     []
