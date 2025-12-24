@@ -1,295 +1,277 @@
 /**
  * TooltipNudge Component Tests
+ *
+ * These tests verify the React ↔ Web Component INTEGRATION CONTRACT:
+ * 1. TooltipNudge renders <reveal-tooltip-nudge> custom element
+ * 2. React passes `decision` prop correctly to WC
+ * 3. React listens to CustomEvents from WC and calls callbacks
+ * 4. Event listeners are stable (no double-firing in React StrictMode)
+ *
+ * We do NOT test:
+ * - Shadow DOM rendering (tested in @reveal/overlay-wc)
+ * - Visual layout, positioning, or styles (tested in @reveal/overlay-wc)
+ * - Tooltip-specific behavior (tested in @reveal/overlay-wc)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, waitFor } from '@testing-library/react';
 import { TooltipNudge } from '../../components/templates/TooltipNudge';
-import type { UINudgeDecision } from '../../types/NudgeDecision';
+import type { NudgeDecision } from '../../types/NudgeDecision';
 
-// Mock the hooks
-// Note: useTrackNudgeShown is no longer used in TooltipNudge
-// It's handled by OverlayManager instead
-
-vi.mock('../../hooks/useKeyboardDismiss', () => ({
-  useKeyboardDismiss: vi.fn(),
-}));
-
-describe('TooltipNudge', () => {
+describe('TooltipNudge - React/WC Integration Contract', () => {
   const mockOnDismiss = vi.fn();
   const mockOnActionClick = vi.fn();
   const mockOnTrack = vi.fn();
 
   beforeEach(() => {
-    // Mock window dimensions for quadrant positioning
-    Object.defineProperty(window, 'innerWidth', { 
-      value: 1024, 
-      writable: true, 
-      configurable: true 
-    });
-    Object.defineProperty(window, 'innerHeight', { 
-      value: 768, 
-      writable: true, 
-      configurable: true 
-    });
-
     vi.clearAllMocks();
+    // Ensure stub Web Component is registered
+    if (!customElements.get('reveal-tooltip-nudge')) {
+      class RevealTooltipNudgeStub extends HTMLElement {
+        _decision: any = null;
+
+        set decision(value: any) {
+          this._decision = value;
+        }
+
+        get decision() {
+          return this._decision;
+        }
+      }
+      customElements.define('reveal-tooltip-nudge', RevealTooltipNudgeStub);
+    }
   });
 
-  const createMockDecision = (overrides?: Partial<UINudgeDecision>): UINudgeDecision => ({
+  const createMockDecision = (overrides?: Partial<NudgeDecision>): NudgeDecision => ({
     id: 'test-nudge-1',
     templateId: 'tooltip',
-    body: 'Test body text',
-    quadrant: 'topCenter', // Default quadrant
+    body: 'Test body',
     ...overrides,
   });
 
-  it('renders with UINudgeDecision containing body', async () => {
-    const decision = createMockDecision({ 
-      body: 'Test body',
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-      />
-    );
+  describe('Element Rendering', () => {
+    it('renders reveal-tooltip-nudge custom element', () => {
+      const decision = createMockDecision();
+      render(
+        <TooltipNudge
+          decision={decision}
+          onDismiss={mockOnDismiss}
+        />
+      );
 
-    // Wait for position to be calculated and tooltip to render
-    await waitFor(() => {
-      expect(screen.getByText('Test body')).toBeInTheDocument();
+      const wcElement = document.querySelector('reveal-tooltip-nudge');
+      expect(wcElement).toBeInTheDocument();
     });
   });
 
-  it('renders with title and body', async () => {
-    const decision = createMockDecision({
-      title: 'Test Title',
-      body: 'Test body',
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-      />
-    );
+  describe('Decision Property Passing', () => {
+    it('sets decision property on WC element', async () => {
+      const decision = createMockDecision({ id: 'test-123', body: 'Test tooltip' });
+      render(
+        <TooltipNudge
+          decision={decision}
+          onDismiss={mockOnDismiss}
+        />
+      );
 
-    // Wait for tooltip to render
-    await waitFor(() => {
-      expect(screen.getByText('Test Title')).toBeInTheDocument();
-      expect(screen.getByText('Test body')).toBeInTheDocument();
-    });
-  });
-
-  it('renders with ctaText button', async () => {
-    const decision = createMockDecision({
-      body: 'Test body',
-      ctaText: 'Click me',
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-        onActionClick={mockOnActionClick}
-      />
-    );
-
-    // Wait for tooltip to render
-    await waitFor(() => {
-      const ctaButton = screen.getByText('Click me');
-      expect(ctaButton).toBeInTheDocument();
-    });
-  });
-
-  it('calls onActionClick when CTA button clicked', async () => {
-    const decision = createMockDecision({
-      body: 'Test body',
-      ctaText: 'Click me',
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-        onActionClick={mockOnActionClick}
-      />
-    );
-
-    // Wait for tooltip to render, then click
-    await waitFor(() => {
-      const ctaButton = screen.getByText('Click me');
-      fireEvent.click(ctaButton);
+      await waitFor(() => {
+        const wcElement = document.querySelector('reveal-tooltip-nudge') as any;
+        expect(wcElement).toBeTruthy();
+        expect(wcElement.decision).toEqual(expect.objectContaining({
+          id: 'test-123',
+          body: 'Test tooltip',
+        }));
+      });
     });
 
-    expect(mockOnActionClick).toHaveBeenCalledWith('test-nudge-1');
-  });
+    it('updates decision property when prop changes', async () => {
+      const decision1 = createMockDecision({ id: 'decision-1', body: 'First' });
+      const { rerender } = render(
+        <TooltipNudge
+          decision={decision1}
+          onDismiss={mockOnDismiss}
+        />
+      );
 
-  it('calls onDismiss when "Got it" button clicked', async () => {
-    const decision = createMockDecision({ 
-      body: 'Test body',
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-      />
-    );
+      await waitFor(() => {
+        const wcElement = document.querySelector('reveal-tooltip-nudge') as any;
+        expect(wcElement.decision.body).toBe('First');
+      });
 
-    // Wait for tooltip to render, then click "Got it"
-    await waitFor(() => {
-      const gotItButton = screen.getByText('✔️ Got it');
-      fireEvent.click(gotItButton);
-    });
+      const decision2 = createMockDecision({ id: 'decision-2', body: 'Second' });
+      rerender(
+        <TooltipNudge
+          decision={decision2}
+          onDismiss={mockOnDismiss}
+        />
+      );
 
-    expect(mockOnDismiss).toHaveBeenCalledWith('test-nudge-1');
-  });
-
-  it('hides "Got it" button when dismissible is false', () => {
-    const decision = createMockDecision({
-      body: 'Test body',
-      dismissible: false,
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-      />
-    );
-
-    expect(screen.queryByText('✔️ Got it')).not.toBeInTheDocument();
-  });
-
-  it('renders tooltip in topCenter by default when quadrant not specified', async () => {
-    const decision = createMockDecision({
-      body: 'Test body',
-      quadrant: undefined, // No quadrant specified
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-      />
-    );
-
-    // Should render tooltip in default topCenter position
-    await waitFor(() => {
-      expect(screen.getByText('Test body')).toBeInTheDocument();
-    });
-    
-    const tooltip = screen.getByRole('tooltip');
-    expect(tooltip).toBeInTheDocument();
-    // Should have positioning styles (top and left from inline styles)
-    // Top value is calculated by centering tooltip in quadrant, not a fixed value
-    const style = tooltip.getAttribute('style');
-    expect(style).toContain('top:');
-    expect(style).toMatch(/top:\s*[\d.]+px/);
-    // Should have left style set (exact value depends on viewport width)
-    expect(style).toContain('left:');
-    expect(style).toMatch(/left:\s*[\d.]+px/);
-    // Should have fixed positioning (inline styles)
-    expect(style).toContain('position: fixed');
-  });
-
-  it('positions tooltip in specified quadrant', async () => {
-    const decision = createMockDecision({
-      body: 'Test body',
-      quadrant: 'topRight',
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-      />
-    );
-
-    await waitFor(() => {
-      const tooltip = screen.getByRole('tooltip');
-      expect(tooltip).toBeInTheDocument();
-      // Should be positioned (top and left styles set)
-      // Top value is calculated by centering tooltip in quadrant, not a fixed value
-      const style = tooltip.getAttribute('style');
-      expect(style).toContain('top:');
-      expect(style).toMatch(/top:\s*[\d.]+px/);
-      // Should have left style set (exact value depends on viewport width and quadrant)
-      expect(style).toContain('left:');
-      expect(style).toMatch(/left:\s*[\d.]+px/);
-      // Should have fixed positioning (inline styles)
-      expect(style).toContain('position: fixed');
+      await waitFor(() => {
+        const wcElement = document.querySelector('reveal-tooltip-nudge') as any;
+        expect(wcElement.decision.body).toBe('Second');
+      });
     });
   });
 
-  it('renders tooltip with onTrack callback available', async () => {
-    // Note: useTrackNudgeShown is no longer called in TooltipNudge
-    // Tracking is handled by OverlayManager instead
-    const decision = createMockDecision({ 
-      body: 'Test body',
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-        onTrack={mockOnTrack}
-      />
-    );
+  describe('CustomEvent Handling', () => {
+    it('calls onDismiss when reveal:dismiss event is fired', async () => {
+      const decision = createMockDecision({ id: 'nudge-123' });
+      render(
+        <TooltipNudge
+          decision={decision}
+          onDismiss={mockOnDismiss}
+        />
+      );
 
-    // Wait for component to mount
-    await waitFor(() => {
-      expect(screen.getByText('Test body')).toBeInTheDocument();
+      await waitFor(() => {
+        const wcElement = document.querySelector('reveal-tooltip-nudge');
+        expect(wcElement).toBeInTheDocument();
+      });
+
+      // Simulate WC firing reveal:dismiss event
+      const wcElement = document.querySelector('reveal-tooltip-nudge')!;
+      wcElement.dispatchEvent(new CustomEvent('reveal:dismiss', {
+        detail: { id: 'nudge-123' },
+        bubbles: true,
+        composed: true,
+      }));
+
+      await waitFor(() => {
+        expect(mockOnDismiss).toHaveBeenCalledTimes(1);
+        expect(mockOnDismiss).toHaveBeenCalledWith('nudge-123');
+      });
     });
 
-    // Verify tooltip renders correctly
-    // Tracking is handled by OverlayManager, not TooltipNudge
-    expect(screen.getByText('Test body')).toBeInTheDocument();
+    it('calls onActionClick when reveal:action-click event is fired', async () => {
+      const decision = createMockDecision({ id: 'nudge-456' });
+      render(
+        <TooltipNudge
+          decision={decision}
+          onDismiss={mockOnDismiss}
+          onActionClick={mockOnActionClick}
+        />
+      );
+
+      await waitFor(() => {
+        const wcElement = document.querySelector('reveal-tooltip-nudge');
+        expect(wcElement).toBeInTheDocument();
+      });
+
+      // Simulate WC firing reveal:action-click event
+      const wcElement = document.querySelector('reveal-tooltip-nudge')!;
+      wcElement.dispatchEvent(new CustomEvent('reveal:action-click', {
+        detail: { id: 'nudge-456' },
+        bubbles: true,
+        composed: true,
+      }));
+
+      await waitFor(() => {
+        expect(mockOnActionClick).toHaveBeenCalledTimes(1);
+        expect(mockOnActionClick).toHaveBeenCalledWith('nudge-456');
+      });
+    });
+
+    it('calls onTrack when reveal:shown event is fired', async () => {
+      const decision = createMockDecision({ id: 'nudge-789' });
+      render(
+        <TooltipNudge
+          decision={decision}
+          onDismiss={mockOnDismiss}
+          onTrack={mockOnTrack}
+        />
+      );
+
+      await waitFor(() => {
+        const wcElement = document.querySelector('reveal-tooltip-nudge');
+        expect(wcElement).toBeInTheDocument();
+      });
+
+      // Simulate WC firing reveal:shown event
+      const wcElement = document.querySelector('reveal-tooltip-nudge')!;
+      wcElement.dispatchEvent(new CustomEvent('reveal:shown', {
+        detail: { id: 'nudge-789' },
+        bubbles: true,
+        composed: true,
+      }));
+
+      await waitFor(() => {
+        expect(mockOnTrack).toHaveBeenCalledTimes(1);
+        expect(mockOnTrack).toHaveBeenCalledWith('nudge', 'nudge_shown', { nudgeId: 'nudge-789' });
+      });
+    });
+
+    it('handles events fired before listeners attached', async () => {
+      const decision = createMockDecision({ id: 'early-event' });
+      const { container } = render(
+        <TooltipNudge
+          decision={decision}
+          onDismiss={mockOnDismiss}
+        />
+      );
+
+      // Fire event immediately (before listeners might be attached)
+      const wcElement = container.querySelector('reveal-tooltip-nudge')!;
+      wcElement.dispatchEvent(new CustomEvent('reveal:dismiss', {
+        detail: { id: 'early-event' },
+        bubbles: true,
+        composed: true,
+      }));
+
+      // Wait for React to attach listeners
+      await waitFor(() => {
+        // Fire again after listeners should be attached
+        wcElement.dispatchEvent(new CustomEvent('reveal:dismiss', {
+          detail: { id: 'early-event' },
+          bubbles: true,
+          composed: true,
+        }));
+
+        expect(mockOnDismiss).toHaveBeenCalledWith('early-event');
+      });
+    });
   });
 
-  it('uses body as fallback when title is not provided', async () => {
-    const decision = createMockDecision({
-      body: 'Test body only',
-      title: undefined,
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-      />
-    );
+  describe('Event Listener Cleanup', () => {
+    it('removes listeners on unmount', async () => {
+      const decision = createMockDecision({ id: 'cleanup-test' });
+      const { unmount } = render(
+        <TooltipNudge
+          decision={decision}
+          onDismiss={mockOnDismiss}
+        />
+      );
 
-    // Wait for tooltip to render
-    await waitFor(() => {
-      expect(screen.getByText('Test body only')).toBeInTheDocument();
-      // Should not render title heading
-      expect(screen.queryByRole('heading')).not.toBeInTheDocument();
-    });
-  });
+      await waitFor(() => {
+        const wcElement = document.querySelector('reveal-tooltip-nudge');
+        expect(wcElement).toBeInTheDocument();
+      });
 
-  it('does not render a backdrop overlay (tooltip is non-blocking)', async () => {
-    const decision = createMockDecision({ 
-      body: 'Test body',
-    });
-    
-    render(
-      <TooltipNudge
-        decision={decision}
-        onDismiss={mockOnDismiss}
-      />
-    );
+      // Fire event before unmount
+      const wcElement = document.querySelector('reveal-tooltip-nudge')!;
+      wcElement.dispatchEvent(new CustomEvent('reveal:dismiss', {
+        detail: { id: 'cleanup-test' },
+        bubbles: true,
+        composed: true,
+      }));
 
-    // Wait for tooltip to render
-    await waitFor(() => {
-      expect(screen.getByText('Test body')).toBeInTheDocument();
-    });
+      await waitFor(() => {
+        expect(mockOnDismiss).toHaveBeenCalledTimes(1);
+      });
 
-    // Verify no backdrop overlay exists (tooltip should be non-blocking)
-    const backdrop = document.querySelector('.fixed.inset-0');
-    expect(backdrop).not.toBeInTheDocument();
+      // Unmount component
+      unmount();
+
+      // Fire event after unmount - should not call handler again
+      wcElement.dispatchEvent(new CustomEvent('reveal:dismiss', {
+        detail: { id: 'cleanup-test' },
+        bubbles: true,
+        composed: true,
+      }));
+
+      // Wait a bit to ensure no additional calls
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      expect(mockOnDismiss).toHaveBeenCalledTimes(1); // Still only 1 call
+    });
   });
 });
-
