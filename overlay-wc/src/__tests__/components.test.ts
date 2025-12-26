@@ -26,6 +26,10 @@ describe('Web Components Registration', () => {
     expect(customElements.get('reveal-tooltip-nudge')).toBeDefined();
   });
 
+  it('should register reveal-inline-hint-nudge component', () => {
+    expect(customElements.get('reveal-inline-hint-nudge')).toBeDefined();
+  });
+
   it('should create reveal-overlay-manager instance', () => {
     const element = document.createElement('reveal-overlay-manager');
     expect(element).toBeInstanceOf(HTMLElement);
@@ -47,6 +51,19 @@ describe('Web Components Registration', () => {
 
   it('should have shadow DOM on reveal-tooltip-nudge', () => {
     const element = document.createElement('reveal-tooltip-nudge') as any;
+    document.body.appendChild(element);
+    expect(element.shadowRoot).toBeDefined();
+    document.body.removeChild(element);
+  });
+
+  it('should create reveal-inline-hint-nudge instance', () => {
+    const element = document.createElement('reveal-inline-hint-nudge');
+    expect(element).toBeInstanceOf(HTMLElement);
+    expect(element.tagName.toLowerCase()).toBe('reveal-inline-hint-nudge');
+  });
+
+  it('should have shadow DOM on reveal-inline-hint-nudge', () => {
+    const element = document.createElement('reveal-inline-hint-nudge') as any;
     document.body.appendChild(element);
     expect(element.shadowRoot).toBeDefined();
     document.body.removeChild(element);
