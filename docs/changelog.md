@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Spotlight Template selectorPattern**: Fixed bug where `selectorPattern` field was dropped during wire-to-UI decision mapping, causing spotlight templates to fail with "target_not_found" error. The `mapWireToUI()` function now correctly preserves `selectorPattern` from `WireNudgeDecision` to `UINudgeDecision`.
+
 ### Added
 - **Decision Event Linking**: SDK now links friction events to their decision requests for better traceability
   - Added `frictionEventId` parameter to decision requests sent to `/decide` endpoint

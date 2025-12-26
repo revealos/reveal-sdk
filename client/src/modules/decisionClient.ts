@@ -279,6 +279,7 @@ export function createDecisionClient(
         title: decision.title,
         body: decision.body,
         ctaText: decision.ctaText,
+        selectorPattern: decision.selectorPattern, // CSS selector for target element (used by spotlight)
         slotId: decision.slotId,
         quadrant: decision.quadrant,
         frictionType: decision.frictionType,

@@ -363,5 +363,31 @@ describe('DecisionClient', () => {
       const payload = callArgs[1];
       expect(payload.isNudgeActive).toBe(false);
     });
+
+    it('should preserve selectorPattern field for spotlight decisions', async () => {
+      const signal = createMockFrictionSignal();
+      const context = {
+        projectId: 'test-project',
+        sessionId: 'test-session',
+      };
+
+      (mockTransport.sendDecisionRequest as any).mockResolvedValue({
+        decision: {
+          nudgeId: 'nudge-123',
+          templateId: 'spotlight',
+          title: 'Test Spotlight',
+          body: 'Click the button',
+          selectorPattern: "[data-reveal='spotlight-target']",
+          quadrant: 'bottomCenter',
+          debugCode: 'ABC123',
+        },
+      });
+
+      const result = await decisionClient.requestDecision(signal, context);
+
+      expect(result).not.toBeNull();
+      expect(result?.selectorPattern).toBe("[data-reveal='spotlight-target']");
+      expect(result?.templateId).toBe('spotlight');
+    });
   });
 });

@@ -264,6 +264,12 @@ Understanding the naming conventions helps when working with nudges:
   - Backend can specify quadrant preference via `WireNudgeDecision.quadrant` field
   - Defaults to `"topCenter"` if not specified
   - Prevents overlays from blocking critical UI elements
+- **selectorPattern** - CSS selector for spotlight template target element
+  - Backend config uses `selector_pattern` (snake_case) in template config
+  - Wire protocol uses `selectorPattern` (camelCase) in `WireNudgeDecision` and `UINudgeDecision`
+  - Spotlight template uses this selector to query DOM for target element to highlight
+  - If selector not found, spotlight dismisses with reason `"target_not_found"`
+  - Quadrant templates (tooltip, inline_hint) do not use selectorPattern for positioning
 
 **Flow:**
 1. Backend sends `WireNudgeDecision` → SDK receives it

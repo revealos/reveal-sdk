@@ -36,6 +36,7 @@ export interface WireNudgeDecision {
   title?: string;
   body?: string;
   ctaText?: string;
+  selectorPattern?: string; // CSS selector for target element (used by spotlight template)
   slotId?: string; // Deprecated: kept for backward compatibility
   quadrant?: NudgeQuadrant; // Viewport quadrant for positioning (defaults to "topCenter")
   frictionType?: "stall" | "rageclick" | "backtrack";

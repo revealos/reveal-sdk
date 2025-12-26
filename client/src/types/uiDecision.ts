@@ -66,6 +66,11 @@ export interface UINudgeDecision {
   targetId?: string | null;
 
   /**
+   * CSS selector for target element (used by spotlight template to locate DOM element).
+   */
+  selectorPattern?: string;
+
+  /**
    * Viewport quadrant for positioning the nudge.
    * Defaults to "topCenter" if not specified.
    */
@@ -131,6 +136,7 @@ export function mapWireToUI(
     title: wire.title,
     body: wire.body,
     ctaText: wire.ctaText,
+    selectorPattern: wire.selectorPattern,
     severity: options?.severity,
     targetId: options?.targetId ?? wire.slotId ?? null,
     quadrant: options?.quadrant ?? wire.quadrant ?? "topCenter",
