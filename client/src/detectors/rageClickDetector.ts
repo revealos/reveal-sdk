@@ -203,7 +203,7 @@ export function createRageClickDetector(
   }
 
   /**
-   * Emit rageclick friction signal with raw evidence
+   * Emit rageclick friction signal with summary properties (no arrays/objects for backend validation)
    */
   function emitRageClickSignal(
     state: ClickState,
@@ -216,6 +216,13 @@ export function createRageClickDetector(
       interClickMs.push(clicks[i].ts - clicks[i - 1].ts);
     }
 
+    // Compute interclick timing statistics (instead of raw array)
+    const interClickStats = interClickMs.length > 0 ? {
+      min: Math.min(...interClickMs),
+      max: Math.max(...interClickMs),
+      avg: Math.round(interClickMs.reduce((a, b) => a + b, 0) / interClickMs.length),
+    } : { min: 0, max: 0, avg: 0 };
+
     const debugCode = `RC_${clicks.length}C_${DEFAULT_RAGE_CONFIG.windowMs}MS_${state.targetKey.slice(0, 8)}`;
 
     emit({
@@ -227,8 +234,11 @@ export function createRageClickDetector(
         target_id: state.targetKey, // BACKWARD COMPAT: SDK docs mention target_id
         clickCount: clicks.length,
         windowMs: DEFAULT_RAGE_CONFIG.windowMs,
-        interClickMs,
-        positions: clicks.map((c) => ({ x: c.x, y: c.y, ts: c.ts })),
+        // Flattened statistics (no arrays)
+        interClickMs_min: interClickStats.min,
+        interClickMs_max: interClickStats.max,
+        interClickMs_avg: interClickStats.avg,
+        positions_count: clicks.length,
         driftPx,
         debugCode,
       },

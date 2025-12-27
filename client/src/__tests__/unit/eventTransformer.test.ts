@@ -470,6 +470,190 @@ describe("eventTransformer", () => {
       expect(result.client_ts_ms).toBeNull();
     });
   });
+
+  describe("Friction event property flattening", () => {
+    it("should flatten rageclick properties (no arrays/nested objects)", () => {
+      const baseEvent: BaseEvent = {
+        kind: "friction",
+        name: "friction_rageclick",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: "/checkout",
+        route: null,
+        screen: null,
+        viewKey: "/checkout",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: {
+          type: "rageclick",
+          selector: "#submit-button",
+          pageUrl: "https://example.com/checkout",
+          targetKey: "btn-submit-xyz",
+          target_id: "btn-submit-xyz",
+          clickCount: 5,
+          windowMs: 1000,
+          // Raw arrays that should be flattened
+          interClickMs: [150, 200, 180, 220],
+          positions: [
+            { x: 100, y: 200, ts: 1000 },
+            { x: 102, y: 201, ts: 1150 },
+          ],
+          driftPx: 3,
+          debugCode: "RC_5C_1000MS_btn-subm",
+        },
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, baseOptions);
+
+      // Properties should be flattened (no arrays/objects)
+      expect(result.properties).toBeTruthy();
+      expect(result.properties).toMatchObject({
+        targetKey: "btn-submit-xyz",
+        target_id: "btn-submit-xyz",
+        clickCount: 5,
+        windowMs: 1000,
+        driftPx: 3,
+        debugCode: "RC_5C_1000MS_btn-subm",
+      });
+
+      // Arrays should be converted to counts and stats
+      expect(result.properties?.interClickMs_count).toBe(4);
+      expect(result.properties?.interClickMs_min).toBe(150);
+      expect(result.properties?.interClickMs_max).toBe(220);
+      expect(result.properties?.interClickMs_avg).toBe(188); // (150+200+180+220)/4 = 187.5 rounded to 188
+
+      expect(result.properties?.positions_count).toBe(2);
+
+      // Original arrays should NOT be present
+      expect(result.properties).not.toHaveProperty("interClickMs");
+      expect(result.properties).not.toHaveProperty("positions");
+    });
+
+    it("should flatten backtrack properties (no nested objects)", () => {
+      const baseEvent: BaseEvent = {
+        kind: "friction",
+        name: "friction_backtrack",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: "/dashboard",
+        route: null,
+        screen: null,
+        viewKey: "/dashboard",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: {
+          type: "backtrack",
+          selector: null,
+          pageUrl: "https://example.com/dashboard",
+          from_view: "/settings",
+          to_view: "/dashboard",
+          // Nested objects that should be flattened
+          from: { url: "https://example.com/settings", path: "/settings" },
+          to: { url: "https://example.com/dashboard", path: "/dashboard" },
+          method: "popstate",
+          reason: "returned_to_recent_route",
+          lastForwardTs: 1234567880000,
+          deltaMs: 5420,
+          stackDepth: 2,
+          debugCode: "BT_POPSTATE_2D_5420MS",
+        },
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, baseOptions);
+
+      // Properties should be flattened (no nested objects)
+      expect(result.properties).toBeTruthy();
+      expect(result.properties).toMatchObject({
+        from_view: "/settings",
+        to_view: "/dashboard",
+        method: "popstate",
+        reason: "returned_to_recent_route",
+        lastForwardTs: 1234567880000,
+        deltaMs: 5420,
+        stackDepth: 2,
+        debugCode: "BT_POPSTATE_2D_5420MS",
+      });
+
+      // Nested objects should be converted to JSON strings
+      expect(result.properties?.from_json).toBeTruthy();
+      expect(result.properties?.to_json).toBeTruthy();
+
+      // Original nested objects should NOT be present
+      expect(result.properties).not.toHaveProperty("from");
+      expect(result.properties).not.toHaveProperty("to");
+    });
+
+    it("should keep stall properties unchanged (already flat)", () => {
+      const baseEvent: BaseEvent = {
+        kind: "friction",
+        name: "friction_stall",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: "/checkout",
+        route: null,
+        screen: null,
+        viewKey: "/checkout",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: {
+          type: "stall",
+          selector: "#payment-form",
+          pageUrl: "https://example.com/checkout",
+          stallDurationMs: 20000,
+          debugCode: "STALL_20000MS_#payment-form",
+        },
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, baseOptions);
+
+      // Stall properties are already flat, should pass through (but will have type/selector/pageUrl filtered out)
+      expect(result.properties).toMatchObject({
+        stallDurationMs: 20000,
+        debugCode: "STALL_20000MS_#payment-form",
+      });
+    });
+
+    it("should NOT flatten properties for non-friction events", () => {
+      const baseEvent: BaseEvent = {
+        kind: "product",
+        name: "test_event",
+        event_source: "user",
+        session_id: "session-123",
+        is_treatment: null,
+        timestamp: 1234567890000,
+        path: "/page",
+        route: null,
+        screen: null,
+        viewKey: "/page",
+        user_agent: "Mozilla/5.0",
+        viewport_width: 1920,
+        viewport_height: 1080,
+        payload: {
+          items: [1, 2, 3],
+          metadata: { key: "value" },
+          count: 5,
+        },
+      };
+
+      const result = transformBaseEventToBackendFormat(baseEvent, baseOptions);
+
+      // Non-friction events should NOT be flattened
+      expect(result.properties).toEqual({
+        items: [1, 2, 3],
+        metadata: { key: "value" },
+        count: 5,
+      });
+    });
+  });
 });
 
 

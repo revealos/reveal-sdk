@@ -246,6 +246,23 @@ export function createTransport(options: TransportOptions): Transport {
         timestamp: now(),
       };
 
+      // DEBUG PROBE 3: Log batch summary before POST
+      if (typeof window !== "undefined" && (window as any).__REVEAL_DEBUG__) {
+        const frictionCounts: Record<string, number> = {};
+        eventsToSend.forEach((e: any) => {
+          if (e.event_kind === "friction" && e.friction_type) {
+            frictionCounts[e.friction_type] = (frictionCounts[e.friction_type] || 0) + 1;
+          }
+        });
+        console.log("[REVEAL_DEBUG] POST /ingest batch:", {
+          batchSize: eventsToSend.length,
+          frictionCountsByType: frictionCounts,
+          hasBacktrack: frictionCounts.backtrack > 0,
+          hasRageclick: frictionCounts.rageclick > 0,
+          endpoint: endpointUrl,
+        });
+      }
+
       // SECURITY: Audit log before sending event batch
       // Metadata contains summary only (no raw PII, payloads already scrubbed)
       logAuditEvent(createAuditEvent(
@@ -273,18 +290,37 @@ export function createTransport(options: TransportOptions): Transport {
 
       clearTimeout(timeoutId);
 
+      // DEBUG PROBE 3b: Log response status
+      if (typeof window !== "undefined" && (window as any).__REVEAL_DEBUG__) {
+        console.log("[REVEAL_DEBUG] POST /ingest response:", {
+          status: response.status,
+          ok: response.ok,
+        });
+      }
+
       // Check HTTP status
       if (!response.ok) {
         // Extract error details if available
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        let errorBodySnippet = null;
 
         try {
           const errorBody = await response.json();
+          errorBodySnippet = JSON.stringify(errorBody).substring(0, 200);
           if (errorBody.error) {
             errorMessage = errorBody.error;
           }
         } catch (parseError) {
           // Ignore JSON parse errors
+        }
+
+        // DEBUG PROBE 3c: Log error details
+        if (typeof window !== "undefined" && (window as any).__REVEAL_DEBUG__) {
+          console.error("[REVEAL_DEBUG] POST /ingest error:", {
+            status: response.status,
+            errorMessage,
+            errorBodySnippet,
+          });
         }
 
         throw new HttpError(response.status, errorMessage);
@@ -294,6 +330,11 @@ export function createTransport(options: TransportOptions): Transport {
       try {
         const result = await response.json();
         logger?.logDebug("Transport: server response", result);
+
+        // DEBUG PROBE 3d: Log success response
+        if (typeof window !== "undefined" && (window as any).__REVEAL_DEBUG__) {
+          console.log("[REVEAL_DEBUG] POST /ingest success:", result);
+        }
       } catch (parseError) {
         // Non-JSON response is fine for 2xx
         logger?.logDebug("Transport: non-JSON success response");

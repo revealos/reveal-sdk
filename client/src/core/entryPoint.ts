@@ -92,6 +92,11 @@ export async function init(
   // SETUP: Extract options
   const debugMode = options.debug === true;
 
+  // Enable global debug flag for modules without direct access to options
+  if (debugMode && typeof window !== "undefined") {
+    (window as any).__REVEAL_DEBUG__ = true;
+  }
+
   // INITIALIZE: Logger (must be first for error handling)
   logger = createLogger({ debug: debugMode });
   
@@ -317,6 +322,18 @@ export async function init(
 
         logger?.logDebug("Friction signal received", frictionSignal);
 
+        // DEBUG PROBE 1: Log friction signal processing
+        if (debugMode) {
+          console.log("[REVEAL_DEBUG] Friction signal processing:", {
+            type: frictionSignal.type,
+            pageUrl: frictionSignal.pageUrl,
+            selector: frictionSignal.selector,
+            hasExtraKeys: Object.keys(frictionSignal.extra || {}).length,
+            willTrackEventPipeline: true,
+            willCallDecision: !isNudgeActive && (!nudgeDismissalCooldownUntil || now >= nudgeDismissalCooldownUntil),
+          });
+        }
+
         // Emit friction event to pipeline
         // CRITICAL: flushImmediately=true ensures friction events are sent before nudge events
         // This preserves causality: friction → decision → nudge
@@ -332,6 +349,14 @@ export async function init(
           },
           true // flushImmediately: ensure friction events are sent before nudge events
         );
+
+        // DEBUG PROBE 1b: Log event ID captured
+        if (debugMode) {
+          console.log("[REVEAL_DEBUG] Friction event captured:", {
+            frictionEventId,
+            type: frictionSignal.type,
+          });
+        }
 
         // Mark activity for session idle handling
         if (sessionManager.markActivity) {

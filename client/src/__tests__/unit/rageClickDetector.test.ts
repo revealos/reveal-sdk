@@ -115,13 +115,18 @@ describe("RageClickDetector", () => {
       expect(call.extra).toHaveProperty("target_id");
       expect(call.extra).toHaveProperty("clickCount");
       expect(call.extra).toHaveProperty("windowMs");
-      expect(call.extra).toHaveProperty("interClickMs");
-      expect(call.extra).toHaveProperty("positions");
+      // Flattened properties (no arrays)
+      expect(call.extra).toHaveProperty("interClickMs_min");
+      expect(call.extra).toHaveProperty("interClickMs_max");
+      expect(call.extra).toHaveProperty("interClickMs_avg");
+      expect(call.extra).toHaveProperty("positions_count");
       expect(call.extra).toHaveProperty("driftPx");
       expect(call.extra).toHaveProperty("debugCode");
 
-      // Verify no confidence_score
+      // Verify no confidence_score or raw arrays
       expect(call.extra).not.toHaveProperty("confidence_score");
+      expect(call.extra).not.toHaveProperty("interClickMs");
+      expect(call.extra).not.toHaveProperty("positions");
     });
   });
 
@@ -732,10 +737,10 @@ describe("RageClickDetector", () => {
       // First emission happens on 4th click with 4 positions
       // (We emit as soon as minClicks threshold is reached)
       const call = mockEmit.mock.calls[0][0];
-      expect(call.extra.positions).toHaveLength(4);
+      expect(call.extra.positions_count).toBe(4);
 
-      // The positions array in memory continues to grow (limited to 5)
-      // but subsequent emissions are blocked by cooldown
+      // The positions count reflects the number of clicks
+      // (No longer emitting raw positions array)
     });
 
     it("should cleanup on destroy", () => {

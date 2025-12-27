@@ -128,6 +128,82 @@ function extractReferrerPath(referrer: string | null): string | null {
 }
 
 /**
+ * Flatten properties for backend ingestion
+ *
+ * Backend validation requires properties to be flat (no nested objects/arrays).
+ * This function converts nested structures to primitives:
+ * - Arrays → length count + optional summary
+ * - Objects → JSON string (truncated if needed)
+ * - Primitives → pass through unchanged
+ *
+ * @param props - Raw properties object
+ * @returns Flattened properties suitable for backend validation
+ */
+function flattenProperties(props: Record<string, any> | null | undefined): Record<string, string | number | boolean | null> | null {
+  if (!props || typeof props !== "object" || Object.keys(props).length === 0) {
+    return null;
+  }
+
+  const flattened: Record<string, string | number | boolean | null> = {};
+
+  for (const [key, value] of Object.entries(props)) {
+    // Skip undefined values
+    if (value === undefined) {
+      continue;
+    }
+
+    // Null passes through
+    if (value === null) {
+      flattened[key] = null;
+      continue;
+    }
+
+    // Primitives pass through
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      flattened[key] = value;
+      continue;
+    }
+
+    // Arrays: convert to summary
+    if (Array.isArray(value)) {
+      // Store array length
+      flattened[`${key}_count`] = value.length;
+
+      // For arrays of primitives, optionally store first few items
+      const isPrimitiveArray = value.length > 0 && value.every((item) =>
+        typeof item === "string" || typeof item === "number" || typeof item === "boolean" || item === null
+      );
+
+      if (isPrimitiveArray && value.length > 0) {
+        // For numeric arrays, compute min/max/avg if useful (e.g., interClickMs)
+        const isNumericArray = value.every((item) => typeof item === "number");
+        if (isNumericArray && key === "interClickMs") {
+          const nums = value as number[];
+          flattened[`${key}_min`] = Math.min(...nums);
+          flattened[`${key}_max`] = Math.max(...nums);
+          flattened[`${key}_avg`] = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+        }
+      }
+
+      continue;
+    }
+
+    // Objects: JSON stringify (truncated to 200 chars max)
+    if (typeof value === "object") {
+      try {
+        const jsonStr = JSON.stringify(value);
+        flattened[`${key}_json`] = jsonStr.length > 200 ? jsonStr.substring(0, 200) + "..." : jsonStr;
+      } catch {
+        flattened[`${key}_json`] = "[object]";
+      }
+      continue;
+    }
+  }
+
+  return Object.keys(flattened).length > 0 ? flattened : null;
+}
+
+/**
  * Transform BaseEvent to backend format
  * 
  * @param baseEvent - SDK internal event format
@@ -213,6 +289,12 @@ export function transformBaseEventToBackendFormat(
     ? pageContext.referrer
     : (baseEvent.referrer ?? pageContext.referrer);
 
+  // Flatten properties for friction events (backend validation requires flat structure)
+  // For non-friction events, use payload as-is
+  const properties = baseEvent.kind === "friction"
+    ? flattenProperties(baseEvent.payload)
+    : (baseEvent.payload && Object.keys(baseEvent.payload).length > 0 ? baseEvent.payload : null);
+
   // Build backend event format
   // Use event_id from BaseEvent if available (generated at creation time), otherwise generate new
   const backendEvent: BackendEventFormat = {
@@ -224,7 +306,7 @@ export function transformBaseEventToBackendFormat(
     event_source: baseEvent.event_source,
     anonymous_id: options.anonymousId,
     sdk_version: options.sdkVersion,
-    properties: baseEvent.payload && Object.keys(baseEvent.payload).length > 0 ? baseEvent.payload : null,
+    properties: properties,
     page_url: pageUrl,
     page_title: finalPageTitle,
     referrer: finalReferrer,

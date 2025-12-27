@@ -96,14 +96,10 @@ describe("BacktrackDetector", () => {
         extra: expect.objectContaining({
           from_view: "/settings",
           to_view: "/home",
-          from: expect.objectContaining({
-            url: "https://app.example.com/settings?tab=billing",
-            path: "/settings",
-          }),
-          to: expect.objectContaining({
-            url: "https://app.example.com/home",
-            path: "/home",
-          }),
+          from_url: "https://app.example.com/settings?tab=billing",
+          from_path: "/settings",
+          to_url: "https://app.example.com/home",
+          to_path: "/home",
           method: "popstate",
           reason: "returned_to_recent_route",
           stackDepth: 2,
@@ -135,13 +131,11 @@ describe("BacktrackDetector", () => {
       expect(call.extra).toHaveProperty("from_view");
       expect(call.extra).toHaveProperty("to_view");
 
-      // Nested evidence objects
-      expect(call.extra).toHaveProperty("from");
-      expect(call.extra.from).toHaveProperty("url");
-      expect(call.extra.from).toHaveProperty("path");
-      expect(call.extra).toHaveProperty("to");
-      expect(call.extra.to).toHaveProperty("url");
-      expect(call.extra.to).toHaveProperty("path");
+      // Flattened evidence fields (primitives only)
+      expect(call.extra).toHaveProperty("from_url");
+      expect(call.extra).toHaveProperty("from_path");
+      expect(call.extra).toHaveProperty("to_url");
+      expect(call.extra).toHaveProperty("to_path");
 
       // Metadata
       expect(call.extra).toHaveProperty("method");
@@ -151,8 +145,10 @@ describe("BacktrackDetector", () => {
       expect(call.extra).toHaveProperty("stackDepth");
       expect(call.extra).toHaveProperty("debugCode");
 
-      // Should NOT have confidence_score
+      // Should NOT have confidence_score or nested objects
       expect(call.extra).not.toHaveProperty("confidence_score");
+      expect(call.extra).not.toHaveProperty("from");
+      expect(call.extra).not.toHaveProperty("to");
     });
   });
 
@@ -335,15 +331,11 @@ describe("BacktrackDetector", () => {
       expect(call.extra.from_view).toBe("/settings");
       expect(call.extra.to_view).toBe("/home");
 
-      // Nested evidence objects with full URLs
-      expect(call.extra.from).toEqual({
-        url: "https://app.example.com/settings?tab=profile",
-        path: "/settings",
-      });
-      expect(call.extra.to).toEqual({
-        url: "https://app.example.com/home#welcome",
-        path: "/home",
-      });
+      // Flattened evidence fields with full URLs (primitives only)
+      expect(call.extra.from_url).toBe("https://app.example.com/settings?tab=profile");
+      expect(call.extra.from_path).toBe("/settings");
+      expect(call.extra.to_url).toBe("https://app.example.com/home#welcome");
+      expect(call.extra.to_path).toBe("/home");
     });
   });
 

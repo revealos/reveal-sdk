@@ -214,7 +214,7 @@ export function createBacktrackDetector(
   }
 
   /**
-   * Emit backtrack friction signal
+   * Emit backtrack friction signal with flattened properties (no nested objects for backend validation)
    */
   function emitBacktrackSignal(
     from: RouteEntry,
@@ -236,9 +236,11 @@ export function createBacktrackDetector(
         from_view: from.routeKey,
         to_view: currentRouteKey,
 
-        // Detailed evidence (nested objects as per requirements)
-        from: { url: from.url, path: from.routeKey },
-        to: { url: currentUrl, path: currentRouteKey },
+        // Flattened evidence (primitives only for backend validation)
+        from_url: from.url,
+        from_path: from.routeKey,
+        to_url: currentUrl,
+        to_path: currentRouteKey,
         method: method, // "popstate" | "pushState" | "replaceState" | "hashchange"
         reason: "returned_to_recent_route",
         lastForwardTs: from.ts, // Timestamp when from_view was last visited

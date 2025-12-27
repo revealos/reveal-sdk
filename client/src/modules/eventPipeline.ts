@@ -450,6 +450,17 @@ export function createEventPipeline(
         // Enrich event with metadata
         const enrichedEvent = enrichEvent(kind, name, payload);
 
+        // DEBUG PROBE 2: Log event enqueued
+        if (typeof window !== "undefined" && (window as any).__REVEAL_DEBUG__) {
+          console.log("[REVEAL_DEBUG] Event enqueued:", {
+            event_kind: enrichedEvent.event_kind,
+            event_type: enrichedEvent.event_type,
+            friction_type: (enrichedEvent as any).friction_type || null,
+            event_id: enrichedEvent.event_id,
+            flushImmediately,
+          });
+        }
+
         // Add to buffer
         eventBuffer.push(enrichedEvent);
 
