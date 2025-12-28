@@ -663,7 +663,7 @@ describe("ConfigClient", () => {
       try {
         // Temporarily remove fetch
         (global as any).fetch = undefined;
-        
+
         expect(() => {
           createConfigClient({
             endpoint: "https://api.reveal.io/config",
@@ -675,6 +675,84 @@ describe("ConfigClient", () => {
         // Restore fetch
         (global as any).fetch = originalFetch;
       }
+    });
+  });
+
+  describe("treatment_rules validation", () => {
+    it("should accept treatment_rules in config without logging unknown keys", async () => {
+      const mockConfig: ClientConfig = {
+        configVersion: 1,
+        projectId: "test-project",
+        environment: "development",
+        sdk: { samplingRate: 1 },
+        decision: { endpoint: "/decide", timeoutMs: 2000 },
+        features: { enabled: true },
+        treatment_rules: { sticky: true, treatment_percentage: 100 },
+        templates: [],
+        ttlSeconds: 60,
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => mockConfig,
+      });
+
+      client = createConfigClient({
+        endpoint: "https://api.reveal.io/config",
+        clientKey: "test-key",
+        fetchFn: mockFetch as any,
+        logger: mockLogger,
+      });
+
+      const config = await client.getConfig();
+
+      // Assert treatment_rules exists in returned config
+      expect(config).toBeDefined();
+      expect(config?.treatment_rules).toEqual({
+        sticky: true,
+        treatment_percentage: 100,
+      });
+
+      // Assert no "unknown keys" warning was logged for treatment_rules
+      const warnCalls = mockLogger.logWarn.mock.calls;
+      const unknownKeysWarnings = warnCalls.filter((call: any) =>
+        call[0]?.includes("unknown config keys")
+      );
+
+      if (unknownKeysWarnings.length > 0) {
+        const unknownKeys = unknownKeysWarnings[0][1]?.unknownKeys || [];
+        expect(unknownKeys).not.toContain("treatment_rules");
+      }
+    });
+
+    it("should handle config without treatment_rules", async () => {
+      const mockConfig: ClientConfig = {
+        configVersion: 1,
+        projectId: "test-project",
+        environment: "development",
+        sdk: { samplingRate: 1 },
+        decision: { endpoint: "/decide", timeoutMs: 2000 },
+        templates: [],
+        ttlSeconds: 60,
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => mockConfig,
+      });
+
+      client = createConfigClient({
+        endpoint: "https://api.reveal.io/config",
+        clientKey: "test-key",
+        fetchFn: mockFetch as any,
+        logger: mockLogger,
+      });
+
+      const config = await client.getConfig();
+
+      // Assert config is valid without treatment_rules
+      expect(config).toBeDefined();
+      expect(config?.treatment_rules).toBeUndefined();
     });
   });
 });

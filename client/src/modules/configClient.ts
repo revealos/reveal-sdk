@@ -104,19 +104,79 @@ export function createConfigClient(
    */
   function validateConfig(data: any): data is ClientConfig {
     if (!data || typeof data !== "object") {
+      logger?.logWarn("ConfigClient: invalid config - not an object");
       return false;
     }
 
+    // Check configVersion
+    const version = data.configVersion ?? 1;
+    if (typeof version !== "number" || version < 1) {
+      logger?.logError("ConfigClient: invalid configVersion", { version });
+      return false;
+    }
+    if (version > 1) { // CURRENT_CONFIG_VERSION imported would be better, but avoiding import for minimal diff
+      logger?.logWarn("ConfigClient: config version higher than SDK supports", {
+        configVersion: version,
+        sdkVersion: 1,
+      });
+    }
+
     // Check required fields
-    if (typeof data.projectId !== "string") return false;
-    if (!["production", "staging", "development"].includes(data.environment)) return false;
-    if (!data.sdk || typeof data.sdk !== "object") return false;
-    if (typeof data.sdk.samplingRate !== "number") return false;
-    if (!data.decision || typeof data.decision !== "object") return false;
-    if (typeof data.decision.endpoint !== "string") return false;
-    if (typeof data.decision.timeoutMs !== "number") return false;
-    if (!Array.isArray(data.templates)) return false;
-    if (typeof data.ttlSeconds !== "number") return false;
+    if (typeof data.projectId !== "string") {
+      logger?.logWarn("ConfigClient: missing projectId");
+      return false;
+    }
+    if (!["production", "staging", "development"].includes(data.environment)) {
+      logger?.logWarn("ConfigClient: invalid environment");
+      return false;
+    }
+    if (!data.sdk || typeof data.sdk !== "object") {
+      logger?.logWarn("ConfigClient: missing sdk object");
+      return false;
+    }
+    if (typeof data.sdk.samplingRate !== "number") {
+      logger?.logWarn("ConfigClient: invalid sdk.samplingRate");
+      return false;
+    }
+    if (!data.decision || typeof data.decision !== "object") {
+      logger?.logWarn("ConfigClient: missing decision object");
+      return false;
+    }
+    if (typeof data.decision.endpoint !== "string") {
+      logger?.logWarn("ConfigClient: invalid decision.endpoint");
+      return false;
+    }
+    if (typeof data.decision.timeoutMs !== "number") {
+      logger?.logWarn("ConfigClient: invalid decision.timeoutMs");
+      return false;
+    }
+    if (!Array.isArray(data.templates)) {
+      logger?.logWarn("ConfigClient: invalid templates");
+      return false;
+    }
+    if (typeof data.ttlSeconds !== "number") {
+      logger?.logWarn("ConfigClient: invalid ttlSeconds");
+      return false;
+    }
+
+    // Warn on unknown keys (AFTER all known fields checked)
+    // NOTE: unknownKeys does NOT strip keys - this is only a warning. The raw data object
+    // is returned as-is (see line 261: cachedConfig = data). All keys survive validation.
+    const knownKeys = new Set([
+      "configVersion",
+      "projectId",
+      "environment",
+      "sdk",
+      "decision",
+      "features",
+      "treatment_rules", // ADD: Allow treatment_rules through validation
+      "templates",
+      "ttlSeconds",
+    ]);
+    const unknownKeys = Object.keys(data).filter((k) => !knownKeys.has(k));
+    if (unknownKeys.length > 0) {
+      logger?.logWarn("ConfigClient: unknown config keys (will be ignored)", { unknownKeys });
+    }
 
     return true;
   }

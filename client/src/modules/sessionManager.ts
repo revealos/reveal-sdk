@@ -36,6 +36,9 @@ export interface SessionManagerOptions {
   logger?: Logger;
   onSessionEnd?: (reason: string) => void;
   idleTimeoutMs?: number;
+  projectId?: string; // For localStorage scoping
+  anonymousId?: string; // For localStorage scoping
+  initTraceId?: string; // For tracing init calls (debugging multiple SDK instances)
 }
 
 /**
@@ -46,6 +49,7 @@ export interface SessionManager {
   markActivity(): void;
   endSession(reason: string): void;
   onSessionEnd(handler: (reason: string) => void): void;
+  setTreatment(treatment: "control" | "treatment" | null): void;
 }
 
 /**
@@ -57,7 +61,7 @@ export interface SessionManager {
 export function createSessionManager(
   options: SessionManagerOptions = {}
 ): SessionManager {
-  const { logger } = options;
+  const { logger, projectId, anonymousId, initTraceId } = options;
 
   // ──────────────────────────────────────────────────────────────────────
   // GENERATE SESSION ID
@@ -66,18 +70,63 @@ export function createSessionManager(
   const now = Date.now();
 
   // ──────────────────────────────────────────────────────────────────────
+  // HELPER: Load treatment from localStorage (PROJECT + USER scoped)
+  // ──────────────────────────────────────────────────────────────────────
+  function loadTreatmentFromStorage(): boolean | null {
+    if (!projectId || !anonymousId) {
+      // TRACE: Log why we can't load from storage
+      logger?.logDebug("SessionManager: cannot load treatment from storage (missing projectId or anonymousId)", {
+        initTraceId,
+        hasProjectId: !!projectId,
+        hasAnonymousId: !!anonymousId,
+      });
+      return null; // Can't load without both IDs
+    }
+
+    try {
+      const storageKey = `reveal_treatment_${projectId}_${anonymousId}`;
+      const stored = localStorage.getItem(storageKey);
+
+      // TRACE: Log storage read result
+      logger?.logDebug("SessionManager: loadTreatmentFromStorage", {
+        initTraceId,
+        storageKey,
+        storedValue: stored,
+        projectId,
+        anonymousId,
+        willReturn: stored === "treatment" ? true : stored === "control" ? false : null,
+      });
+
+      if (stored === "treatment") return true;
+      if (stored === "control") return false;
+      return null;
+    } catch (error) {
+      logger?.logWarn("SessionManager: failed to load treatment from storage", {
+        initTraceId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null; // localStorage not available or quota exceeded
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
   // INITIALIZE SESSION STATE
   // ──────────────────────────────────────────────────────────────────────
   let session: Session = {
     id: sessionId,
-    isTreatment: null, // v0: no treatment assignment
+    isTreatment: loadTreatmentFromStorage(), // Load from localStorage if available
     startedAt: now,
     lastActivityAt: now,
   };
 
   logger?.logDebug("SessionManager: session created", {
+    initTraceId,
     sessionId: session.id,
     startedAt: session.startedAt,
+    treatmentLoaded: session.isTreatment !== null,
+    isTreatment: session.isTreatment, // Show actual value (true/false/null)
+    projectId,
+    anonymousId,
   });
 
   // ──────────────────────────────────────────────────────────────────────
@@ -97,6 +146,36 @@ export function createSessionManager(
    */
   function markActivity(): void {
     session.lastActivityAt = Date.now();
+  }
+
+  /**
+   * Set treatment assignment for current session
+   * Persists to localStorage (PROJECT + USER scoped)
+   * @param treatment - "control" | "treatment" | null
+   */
+  function setTreatment(treatment: "control" | "treatment" | null): void {
+    session.isTreatment = treatment === "treatment" ? true : treatment === "control" ? false : null;
+
+    // Persist to localStorage (SCOPED PER PROJECT + USER to prevent cross-project bleed)
+    if (!projectId || !anonymousId) {
+      logger?.logWarn("SessionManager: cannot persist treatment without projectId and anonymousId");
+      return;
+    }
+
+    try {
+      const storageKey = `reveal_treatment_${projectId}_${anonymousId}`;
+      if (treatment) {
+        localStorage.setItem(storageKey, treatment);
+        logger?.logDebug("SessionManager: treatment persisted", { treatment, storageKey });
+      } else {
+        localStorage.removeItem(storageKey);
+        logger?.logDebug("SessionManager: treatment cleared", { storageKey });
+      }
+    } catch (error) {
+      logger?.logWarn("SessionManager: failed to persist treatment to localStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   /**
@@ -131,6 +210,7 @@ export function createSessionManager(
     markActivity,
     endSession,
     onSessionEnd,
+    setTreatment,
   };
 }
 

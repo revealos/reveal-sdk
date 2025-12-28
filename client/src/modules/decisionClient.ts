@@ -54,6 +54,7 @@ export interface DecisionClient {
     signal: FrictionSignal,
     context: DecisionContext
   ): Promise<WireNudgeDecision | null>;
+  extractTreatmentFromDecision(decision: WireNudgeDecision | null): "control" | "treatment" | null;
 }
 
 // DecideRequestPayload is now exported from transport.ts
@@ -304,10 +305,31 @@ export function createDecisionClient(
     return Date.now();
   }
 
+  /**
+   * Extract treatment assignment from decision response
+   * Treatment comes from decision.extra._treatment (backend assigns this)
+   * @param decision - WireNudgeDecision response (or null if no decision)
+   * @returns "control" | "treatment" | null
+   */
+  function extractTreatmentFromDecision(decision: WireNudgeDecision | null): "control" | "treatment" | null {
+    if (!decision?.extra?._treatment) {
+      return null;
+    }
+
+    const treatment = decision.extra._treatment;
+    if (treatment === "control" || treatment === "treatment") {
+      return treatment as "control" | "treatment";
+    }
+
+    logger?.logWarn("DecisionClient: invalid _treatment value in decision.extra", { treatment });
+    return null;
+  }
+
   // ──────────────────────────────────────────────────────────────────────
   // RETURN PUBLIC API
   // ──────────────────────────────────────────────────────────────────────
   return {
     requestDecision,
+    extractTreatmentFromDecision,
   };
 }

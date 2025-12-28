@@ -17,6 +17,7 @@
 
 import type { FrictionSignal, FrictionType } from "../types/friction";
 import type { ClientConfig } from "../types/config";
+import { DEFAULT_FEATURES } from "../types/config";
 import type { Logger } from "../utils/logger";
 import { createStallDetector, type StallDetector, type IdleWatchConfig } from "../detectors/stallDetector";
 import { createRageClickDetector, type RageClickDetector } from "../detectors/rageClickDetector";
@@ -92,10 +93,12 @@ export function createDetectorManager(
     };
   }
 
-  // Feature flag: allow disabling friction tracking entirely from config
-  const frictionEnabled = (config as any).features?.enableFrictionTracking ?? true;
-  if (!frictionEnabled) {
-    logger.logDebug("DetectorManager: friction tracking disabled via config");
+  // Check feature flags (global + per-detector)
+  const features = config.features || DEFAULT_FEATURES;
+  const globalEnabled = features.enabled ?? true;
+
+  if (!globalEnabled) {
+    logger.logDebug("DetectorManager: all friction tracking disabled");
     return {
       initDetectors() {},
       destroy() {},
@@ -104,6 +107,8 @@ export function createDetectorManager(
       markContextClosed() {},
     };
   }
+
+  const detectorFlags = features.detectors || DEFAULT_FEATURES.detectors;
 
   // Shared helper to emit FrictionSignal
   // Detectors should populate semantic IDs in extra:
@@ -137,29 +142,39 @@ export function createDetectorManager(
     }
   }
 
-  // Instantiate concrete detectors
-  const stallDetector = createStallDetector({
-    win,
-    doc,
-    logger,
-    emit: emitFrictionSignal,
-  });
+  // Conditionally instantiate detectors based on feature flags
+  const detectors: BaseDetector[] = [];
+  let stallDetector: StallDetector | null = null;
 
-  const rageClickDetector = createRageClickDetector({
-    win,
-    doc,
-    logger,
-    emit: emitFrictionSignal,
-  });
+  if (detectorFlags.stall ?? true) {
+    stallDetector = createStallDetector({
+      win,
+      doc,
+      logger,
+      emit: emitFrictionSignal,
+    });
+    detectors.push(stallDetector);
+  }
 
-  const backtrackDetector = createBacktrackDetector({
-    win,
-    doc,
-    logger,
-    emit: emitFrictionSignal,
-  });
+  if (detectorFlags.rageclick ?? true) {
+    const rageClickDetector = createRageClickDetector({
+      win,
+      doc,
+      logger,
+      emit: emitFrictionSignal,
+    });
+    detectors.push(rageClickDetector);
+  }
 
-  const detectors: BaseDetector[] = [stallDetector, rageClickDetector, backtrackDetector];
+  if (detectorFlags.backtrack ?? true) {
+    const backtrackDetector = createBacktrackDetector({
+      win,
+      doc,
+      logger,
+      emit: emitFrictionSignal,
+    });
+    detectors.push(backtrackDetector);
+  }
 
   function initDetectors() {
     detectors.forEach((d) => {
@@ -188,15 +203,21 @@ export function createDetectorManager(
   }
 
   function startIdleWatch(config: IdleWatchConfig): void {
-    stallDetector.startIdleWatch(config);
+    if (stallDetector) {
+      stallDetector.startIdleWatch(config);
+    }
   }
 
   function stopIdleWatch(context: string): void {
-    stallDetector.stopIdleWatch(context);
+    if (stallDetector) {
+      stallDetector.stopIdleWatch(context);
+    }
   }
 
   function markContextClosed(context: string): void {
-    stallDetector.markContextClosed(context);
+    if (stallDetector) {
+      stallDetector.markContextClosed(context);
+    }
   }
   
   return {
